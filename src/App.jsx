@@ -161,6 +161,14 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage, isGyroActive, setI
             setIsGyroActive(true);
             addDebugMessage('🔄 ✅ GYRO ACTIVATED - isGyroActive = true');
             addDebugMessage('✅ GYRO DIRECT CONTROL READY!');
+            
+            // Add periodic state checker
+            const stateChecker = setInterval(() => {
+              addDebugMessage(`📊 GYRO STATE CHECK: isGyroActive=${isGyroActive}`);
+            }, 2000); // Check every 2 seconds
+            
+            // Clean up checker after 10 seconds
+            setTimeout(() => clearInterval(stateChecker), 10000);
             return;
           } else {
             addDebugMessage('❌ Permission denied: ' + permission);
@@ -293,10 +301,12 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage, isGyroActive, setI
 
   const handleDeviceOrientation = (event) => {
     try {
-      addDebugMessage('🔥 ORIENTATION EVENT TRIGGERED!'); // Always log to see if function is called
+      addDebugMessage('🔥 ORIENTATION EVENT TRIGGERED! isGyroActive=' + isGyroActive); // Show current state
       
       if (!isGyroActive) {
-        addDebugMessage('❌ GYRO NOT ACTIVE - skipping');
+        addDebugMessage('❌ GYRO NOT ACTIVE - skipping (isGyroActive=' + isGyroActive + ')');
+        // Add stack trace to see what's setting it to false
+        addDebugMessage('📍 Stack trace: ' + (new Error().stack?.split('\n')[1] || 'unknown'));
         return;
       }
       
@@ -898,13 +908,20 @@ function App() {
   
   const [debugMessages, setDebugMessages] = useState([]);
   const [manualControlActive, setManualControlActive] = useState(false); // Move here!
-  const [isGyroActive, setIsGyroActive] = useState(false); // Move here!
+  const [isGyroActive, setIsGyroActiveRaw] = useState(false); // Move here!
   
-  // Add debug message function
+  // Add debug message function (must be before setIsGyroActive wrapper)
   const addDebugMessage = (message) => {
     const timestamp = new Date().toLocaleTimeString();
     setDebugMessages(prev => [...prev.slice(-99), `${timestamp}: ${message}`]); // Keep last 100 messages
     console.log(message);
+  };
+  
+  // Wrapped setter with debugging
+  const setIsGyroActive = (value) => {
+    const stackTrace = new Error().stack?.split('\n')[2] || 'unknown';
+    addDebugMessage(`🔄 GYRO STATE CHANGE: ${isGyroActive} → ${value} from ${stackTrace}`);
+    setIsGyroActiveRaw(value);
   };
 
   // Gyroscope handlers
