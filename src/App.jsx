@@ -352,15 +352,22 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage, isGyroActive, setI
       const rangeReduction = uprightAmount * 0.3; // Gradually reduce range
       rotX = (rotX * (1 - rangeReduction)) + forwardBias;
       
-      // Smooth transition for left/right sensitivity
-      const deadzone = uprightAmount * 5; // Gradual deadzone application
-      const adjustedGamma = Math.abs(gamma) > deadzone ? gamma - Math.sign(gamma) * deadzone : 0;
-      
-      // Blend between full sensitivity (1.5) and reduced sensitivity (0.8)
-      const sensitivity = 1.5 - (uprightAmount * 0.7); // 1.5 → 0.8
-      const maxRange = 1.2 - (uprightAmount * 0.6); // 1.2 → 0.6
-      
-      const rotY = clamp((adjustedGamma * sensitivity * Math.PI / 180), -maxRange, maxRange);
+      // When very close to upright (within 15°), always face forward to eliminate glitching
+      let rotY;
+      const veryUprightThreshold = 15; // Dead zone for perfect stability
+      if (Math.abs(adjustedBeta) < veryUprightThreshold) {
+        rotY = 0; // Always face forward when phone is straight up/down
+      } else {
+        // Smooth transition for left/right sensitivity outside the dead zone
+        const deadzone = uprightAmount * 5; // Gradual deadzone application
+        const adjustedGamma = Math.abs(gamma) > deadzone ? gamma - Math.sign(gamma) * deadzone : 0;
+        
+        // Blend between full sensitivity (1.5) and reduced sensitivity (0.8)
+        const sensitivity = 1.5 - (uprightAmount * 0.7); // 1.5 → 0.8
+        const maxRange = 1.2 - (uprightAmount * 0.6); // 1.2 → 0.6
+        
+        rotY = clamp((adjustedGamma * sensitivity * Math.PI / 180), -maxRange, maxRange);
+      }
       
       // DIRECT THREE.JS CONTROL (same technique as test button)
       if (groupRef.current) {
