@@ -3,6 +3,7 @@ import { Canvas } from '@react-three/fiber'
 import { OrbitControls, useGLTF, Environment } from '@react-three/drei'
 import { useSpring, a } from '@react-spring/three'
 import { useGesture } from '@use-gesture/react'
+import LiquidChromeBackground from './LiquidChromeBackground'
 
 // Loading component
 function LoadingSpinner() {
@@ -23,16 +24,16 @@ function LoadingSpinner() {
 
 // Interactive Chain component that hangs from top
 function InteractiveChain() {
-  const { scene } = useGLTF('/Blasted Chain-v2.glb')
+  const { scene } = useGLTF('/Blasted Chain-v6.glb')
   const groupRef = useRef()
   const animationFrameRef = useRef(null)
   const [isSwinging, setIsSwinging] = useState(false)
   
   // Physics constants
   const CHAIN_LENGTH = 5.0 // Virtual chain length for physics calculations
-  const GRAVITY = 9.81 // Gravity constant
-  const AIR_DAMPING = 0.018 // Air resistance coefficient (slightly reduced)
-  const FRICTION_DAMPING = 0.004 // Pivot friction coefficient (slightly reduced)
+  const GRAVITY = 12.0 // Increased gravity for more natural falling
+  const AIR_DAMPING = 0.025 // Slightly increased air resistance
+  const FRICTION_DAMPING = 0.006 // Slightly increased friction
   const CHAIN_MASS = 0.5 // Mass of the chain for inertia calculations
   
   // Camera and viewport calculations
@@ -49,7 +50,7 @@ function InteractiveChain() {
   const CHAIN_MODEL_HEIGHT = 5.3 // Height of the chain model when hanging straight
   // Fine-tuning guide: Lower values move chain down, higher values move it up
   // With camera at z=10 and fov=45: ~7.0-8.0 should be the sweet spot
-  const ANCHOR_Y = 6.3 // Dropped down more for better positioning
+  const ANCHOR_Y = 7.0 // Moved up slightly for better positioning
   const CHAIN_OFFSET = -CHAIN_MODEL_HEIGHT // How far down the chain model extends
   
   // Initial hanging position (slight forward tilt for natural look)
@@ -67,9 +68,30 @@ function InteractiveChain() {
   
   const [{ rotation, scale }, api] = useSpring(() => ({
     rotation: originalRotation,
-    scale: [1, 1, 1],
+    scale: [1.5, 1.5, 1.5],
     config: { mass: 1, tension: 120, friction: 40 },
   }))
+
+  // Add initial swing animation on mount
+  React.useEffect(() => {
+    // Start with a gentle swing - slightly off-center with small initial velocity
+    const initialRotationX = -0.15; // Slight backward tilt
+    const initialRotationY = 0.05;  // Very slight side tilt
+    const initialVelocity = {
+      x: 0.3,  // Small side-to-side velocity
+      y: -0.2  // Small forward velocity (negative for forward motion)
+    };
+    
+    // Start the swing animation immediately
+    startSwingAnimation(initialRotationX, initialRotationY, initialVelocity);
+    
+    return () => {
+      // Clean up animation on unmount
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, []); // Empty dependency array - only run on mount
 
   // Calculate scale based on rotation (perspective effect)
   const calculateScale = (rotX, rotY) => {
@@ -81,14 +103,14 @@ function InteractiveChain() {
     const totalAngle = Math.sqrt(forwardAngle * forwardAngle + sideAngle * sideAngle)
     
     // Scale calculation - chain appears larger when swinging toward camera
-    const baseScale = 1.0
-    const scaleRange = 0.3 // How much the scale can vary
+    const baseScale = 1.5 // Increased from 1.0 to 1.5 for larger overall size
+    const scaleRange = 0.4 // Increased from 0.3 to 0.4 for more dramatic perspective effect
     
     // Forward swing (negative rotX) makes chain larger, backward makes it smaller
     const perspectiveScale = baseScale + (Math.sin(forwardAngle) * scaleRange)
     
-    // Clamp the scale to reasonable bounds
-    return Math.max(0.7, Math.min(1.3, perspectiveScale))
+    // Clamp the scale to reasonable bounds (increased bounds for larger size)
+    return Math.max(1.0, Math.min(2.0, perspectiveScale))
   }
 
   // Function to stop swinging and reset to original position
@@ -105,7 +127,7 @@ function InteractiveChain() {
     // Reset to original rotation only (position stays fixed)
     api.start({ 
       rotation: originalRotation,
-      scale: [1, 1, 1],
+      scale: [1.5, 1.5, 1.5],
       config: {
         tension: 150,
         friction: 50
@@ -165,9 +187,11 @@ function InteractiveChain() {
       velocityRef.current = { ...initialVelocity }
     }
     
-    // Current rotation state
-    let currentRotationX = startRotationX
-    let currentRotationY = startRotationY
+    // Current rotation state - using const with object to allow mutation
+    const currentRotation = {
+      x: startRotationX,
+      y: startRotationY
+    }
     
     // Physics simulation using Runge-Kutta 4th order for accuracy
     let lastFrameTime = Date.now()
@@ -178,20 +202,20 @@ function InteractiveChain() {
       lastFrameTime = now
       
       // RK4 integration for more accurate physics
-      const k1 = calculateAcceleration(currentRotationX, currentRotationY, velocityRef.current)
+      const k1 = calculateAcceleration(currentRotation.x, currentRotation.y, velocityRef.current)
       const k2 = calculateAcceleration(
-        currentRotationX + velocityRef.current.y * dt/2,
-        currentRotationY + velocityRef.current.x * dt/2,
+        currentRotation.x + velocityRef.current.y * dt/2,
+        currentRotation.y + velocityRef.current.x * dt/2,
         { x: velocityRef.current.x + k1.x * dt/2, y: velocityRef.current.y + k1.y * dt/2 }
       )
       const k3 = calculateAcceleration(
-        currentRotationX + velocityRef.current.y * dt/2,
-        currentRotationY + velocityRef.current.x * dt/2,
+        currentRotation.x + velocityRef.current.y * dt/2,
+        currentRotation.y + velocityRef.current.x * dt/2,
         { x: velocityRef.current.x + k2.x * dt/2, y: velocityRef.current.y + k2.y * dt/2 }
       )
       const k4 = calculateAcceleration(
-        currentRotationX + velocityRef.current.y * dt,
-        currentRotationY + velocityRef.current.x * dt,
+        currentRotation.x + velocityRef.current.y * dt,
+        currentRotation.y + velocityRef.current.x * dt,
         { x: velocityRef.current.x + k3.x * dt, y: velocityRef.current.y + k3.y * dt }
       )
       
@@ -200,13 +224,13 @@ function InteractiveChain() {
       velocityRef.current.y += (k1.y + 2*k2.y + 2*k3.y + k4.y) * dt / 6
       
       // Update position
-      currentRotationX += velocityRef.current.y * dt
-      currentRotationY += velocityRef.current.x * dt
+      currentRotation.x += velocityRef.current.y * dt
+      currentRotation.y += velocityRef.current.x * dt
       
       // Apply constraints (maximum angles) - prevent getting stuck
       const maxAngle = Math.PI / 2.5 // Slightly more restrictive to prevent extreme positions
-      currentRotationX = Math.max(-maxAngle, Math.min(maxAngle, currentRotationX))
-      currentRotationY = Math.max(-maxAngle, Math.min(maxAngle, currentRotationY))
+      currentRotation.x = Math.max(-maxAngle, Math.min(maxAngle, currentRotation.x))
+      currentRotation.y = Math.max(-maxAngle, Math.min(maxAngle, currentRotation.y))
       
       // Update secondary motion (chain link wobble)
       const secondaryDamping = 0.95
@@ -229,20 +253,20 @@ function InteractiveChain() {
       secondaryMotionRef.current.z += secondaryVelocityRef.current.z * dt
       
       // Calculate scale based on rotation
-      const currentScale = calculateScale(currentRotationX, currentRotationY)
+      const currentScale = calculateScale(currentRotation.x, currentRotation.y)
       
       api.start({
-        rotation: [currentRotationX, currentRotationY, 0],
+        rotation: [currentRotation.x, currentRotation.y, 0],
         scale: [currentScale, currentScale, currentScale],
         config: { tension: 200, friction: 10 }
       })
       
       // Check if should continue swinging
       const totalEnergy = Math.abs(velocityRef.current.x) + Math.abs(velocityRef.current.y) + 
-                        Math.abs(currentRotationX) * 0.1 + Math.abs(currentRotationY) * 0.1 +
+                        Math.abs(currentRotation.x) * 0.1 + Math.abs(currentRotation.y) * 0.1 +
                         Math.abs(secondaryVelocityRef.current.x) + Math.abs(secondaryVelocityRef.current.y)
       
-      if (totalEnergy > 0.001 && animationFrameRef.current !== null) {
+      if (totalEnergy > 0.002 && animationFrameRef.current !== null) {
         animationFrameRef.current = requestAnimationFrame(swing)
       } else {
         // Gradual settle to rest
@@ -255,7 +279,7 @@ function InteractiveChain() {
         // Very gentle spring back to original rotation
         api.start({ 
           rotation: originalRotation,
-          scale: [1, 1, 1],
+          scale: [1.5, 1.5, 1.5],
           config: {
             tension: 40,
             friction: 80,
@@ -281,7 +305,7 @@ function InteractiveChain() {
         // Start swing with backward push
         startSwingAnimation(startX, startY, {
           x: 0, // No side-to-side momentum
-          y: 2.0 // Backward momentum (reduced from 2.5 for more control)
+          y: 1.2 // Reduced backward momentum for more natural gravity response
         })
       } else {
         // If already swinging, stop it
@@ -356,11 +380,11 @@ function InteractiveChain() {
       }
       
       // Get current rotation from last drag position
-      const currentRotationX = lastDragPositionRef.current.y
-      const currentRotationY = lastDragPositionRef.current.x
+      const currentRotX = lastDragPositionRef.current.y
+      const currentRotY = lastDragPositionRef.current.x
       
       // Start swing animation with transferred momentum
-      startSwingAnimation(currentRotationX, currentRotationY, transferredVelocity)
+      startSwingAnimation(currentRotX, currentRotY, transferredVelocity)
     },
   }, {
     drag: {
@@ -381,7 +405,7 @@ function InteractiveChain() {
       style={{ cursor: isSwinging ? 'pointer' : 'grab' }}
     >
       {/* Chain model positioned below the pivot point */}
-      <group position={[0, CHAIN_OFFSET, 0]} scale={[12, 12, 12]}>
+      <group position={[0, CHAIN_OFFSET, 0]} scale={[16, 16, 16]}>
         <primitive object={scene} />
       </group>
     </a.group>
@@ -455,28 +479,42 @@ function App() {
       top: 0,
       left: 0
     }}>
+      {/* Liquid Chrome Background */}
+      <LiquidChromeBackground
+        baseColor={[0.1, 0.1, 0.1]}
+        speed={0.2}
+        amplitude={0.3}
+        frequencyX={3}
+        frequencyY={3}
+        interactive={true}
+        style={{ zIndex: 0 }}
+      />
+      
       <Canvas
         camera={{ position: [0, 0, 10], fov: 45 }} // Camera looking straight at the chain
         style={{ 
-          background: 'white',
+          background: 'transparent',
           width: '100%',
           height: '100%',
-          display: 'block'
+          display: 'block',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          zIndex: 1
         }}
       >
         {/* Lighting setup */}
-        <ambientLight intensity={0.6} />
+        <ambientLight intensity={1.4} />
         <directionalLight 
-          position={[10, 10, 5]} 
-          intensity={1}
+          position={[20, 20, 10]}  // Positioned far right and high for dramatic lighting
+          intensity={0}  // Turned off temporarily
           castShadow
           shadow-mapSize-width={2048}
           shadow-mapSize-height={2048}
         />
-        <pointLight position={[-10, -10, -10]} intensity={0.5} />
 
         {/* Environment for better reflections */}
-        <Environment preset="studio" />
+        <Environment preset="city" />
 
         {/* Orbit Controls - disabled to prevent conflicts */}
         <OrbitControls 
