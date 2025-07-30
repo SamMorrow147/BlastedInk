@@ -341,8 +341,25 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage, isGyroActive, setI
       const adjustedBeta = beta - 90; // Convert to -90° to +90° range centered on upright
       
       // Map the full 90° phone tilt range to full 1.2 radian chain range
-      const rotX = clamp(-(adjustedBeta / 90) * 1.2, -1.2, 1.2); // Full range utilization
-      const rotY = clamp((gamma * 1.5 * Math.PI / 180), -1.2, 1.2); // Keep left/right sensitivity
+      let rotX = clamp(-(adjustedBeta / 90) * 1.2, -1.2, 1.2); // Full range utilization
+      
+      // Special handling when phone is nearly upright (vertical position)
+      const uprightThreshold = 20; // Within 20° of vertical
+      const isNearUpright = Math.abs(adjustedBeta) < uprightThreshold;
+      
+      let rotY;
+      if (isNearUpright) {
+        // When upright: bias toward forward position and reduce left/right sensitivity
+        rotX = rotX * 0.7 - 0.2; // Bias forward and reduce range
+        
+        // Much slower, smoother left/right movement when upright
+        const deadzone = 5; // 5° deadzone to prevent jitter
+        const adjustedGamma = Math.abs(gamma) > deadzone ? gamma - Math.sign(gamma) * deadzone : 0;
+        rotY = clamp((adjustedGamma * 0.8 * Math.PI / 180), -0.6, 0.6); // Reduced sensitivity and range
+      } else {
+        // Normal left/right sensitivity when tilted
+        rotY = clamp((gamma * 1.5 * Math.PI / 180), -1.2, 1.2);
+      }
       
       // DIRECT THREE.JS CONTROL (same technique as test button)
       if (groupRef.current) {
