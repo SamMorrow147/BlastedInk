@@ -131,30 +131,74 @@ const InteractiveChain = React.forwardRef((props, ref) => {
     }
   };
 
-  const enableGyroscope = () => {
+  const enableGyroscope = async () => {
     try {
-      if (typeof window === 'undefined' || !window.DeviceOrientationEvent) {
-        setGyroError('DeviceOrientation not available');
-        return;
+      // Try DeviceMotion first (might have better support)
+      if (typeof window !== 'undefined' && window.DeviceMotionEvent) {
+        if (typeof DeviceMotionEvent.requestPermission === 'function') {
+          const permission = await DeviceMotionEvent.requestPermission();
+          if (permission === 'granted') {
+            console.log('🚀 MOTION PERMISSION GRANTED!');
+            window.addEventListener('devicemotion', handleDeviceMotion);
+            setIsGyroActive(true);
+            return;
+          }
+        } else {
+          // Android or older iOS
+          window.addEventListener('devicemotion', handleDeviceMotion);
+          setIsGyroActive(true);
+          return;
+        }
       }
 
-      console.log('🚀 ENABLING GYROSCOPE...');
-      setIsGyroActive(true);
-      setGyroError(null);
-      
-      window.addEventListener('deviceorientation', handleDeviceOrientation, { passive: true });
-      console.log('✅ EVENT LISTENER ADDED!');
-      
-      // Test if we get any events at all
-      setTimeout(() => {
-        console.log('⏰ 3 seconds passed - if no gyro data above, device might not support it');
-      }, 3000);
-      
-      // Start gyro animation loop
-      startGyroAnimation();
+      // Fallback to DeviceOrientation
+      if (typeof window !== 'undefined' && window.DeviceOrientationEvent) {
+        if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+          const permission = await DeviceOrientationEvent.requestPermission();
+          if (permission === 'granted') {
+            console.log('🚀 ORIENTATION PERMISSION GRANTED!');
+            window.addEventListener('deviceorientation', handleDeviceOrientation);
+            setIsGyroActive(true);
+            return;
+          }
+        } else {
+          // Android or older iOS
+          window.addEventListener('deviceorientation', handleDeviceOrientation);
+          setIsGyroActive(true);
+          return;
+        }
+      }
+
+      setGyroError('No motion or orientation support found');
     } catch (error) {
-      console.error('❌ Error enabling gyroscope:', error);
+      console.error('❌ Error enabling sensors:', error);
       setGyroError('Failed to enable: ' + error.message);
+    }
+  };
+
+  const handleDeviceMotion = (event) => {
+    try {
+      if (!isGyroActive) return;
+
+      const x = event.accelerationIncludingGravity.x || 0;
+      const y = event.accelerationIncludingGravity.y || 0;
+      const z = event.accelerationIncludingGravity.z || 0;
+
+      console.log(`📱 MOTION - X: ${x.toFixed(2)}, Y: ${y.toFixed(2)}, Z: ${z.toFixed(2)}`);
+
+      // Convert acceleration to rotation (exaggerated for testing)
+      const sensitivity = 0.5; // Very high sensitivity
+      const rotX = -(y * sensitivity); // Forward/back tilt
+      const rotY = x * sensitivity;    // Left/right tilt
+
+      // Direct application
+      if (groupRef.current) {
+        groupRef.current.rotation.x = rotX;
+        groupRef.current.rotation.y = rotY;
+        console.log(`⚡ MOTION ROTATION - X: ${rotX.toFixed(2)}, Y: ${rotY.toFixed(2)}`);
+      }
+    } catch (error) {
+      console.error('❌ Error handling motion:', error);
     }
   };
 
@@ -927,6 +971,35 @@ function App() {
         onEnable={handleEnableGyro}
         onDisable={handleDisableGyro}
       />
+
+      {/* Test Movement Button */}
+      <button
+        onClick={() => {
+          // Test if we can move the chain at all
+          if (chainRef.current) {
+            const randomRotation = Math.random() * Math.PI * 0.5;
+            chainRef.current.rotation.x = randomRotation;
+            chainRef.current.rotation.y = randomRotation;
+            console.log('🎲 TEST ROTATION:', randomRotation);
+          }
+        }}
+        style={{
+          position: 'absolute',
+          bottom: '20px',
+          right: '20px',
+          padding: '12px 16px',
+          backgroundColor: 'rgba(255, 255, 255, 0.9)',
+          border: '2px solid #333',
+          borderRadius: '8px',
+          cursor: 'pointer',
+          fontSize: '14px',
+          fontWeight: '600',
+          color: '#333',
+          zIndex: 1000
+        }}
+      >
+        🎲 Test Movement
+      </button>
 
       {/* Loading indicator */}
       <Suspense fallback={<LoadingSpinner />}>
