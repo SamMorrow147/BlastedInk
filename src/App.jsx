@@ -31,14 +31,7 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage, isGyroActive, setI
   const [showGyroButton, setShowGyroButton] = useState(false)
   const [gyroError, setGyroError] = useState(null)
   
-  // Add ref here where handleDeviceOrientation can access it
-  const isGyroActiveRef = useRef(isGyroActive);
-  
-  // Sync ref with prop changes
-  React.useEffect(() => {
-    isGyroActiveRef.current = isGyroActive;
-    addDebugMessage(`📌 REF SYNCED: isGyroActiveRef.current = ${isGyroActive}`);
-  }, [isGyroActive, addDebugMessage]);
+  // Removed ref - no longer needed since we don't check state in orientation handler
   
 
   // Physics constants
@@ -320,19 +313,11 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage, isGyroActive, setI
       const eventCount = (window.orientationEventCount || 0) + 1;
       window.orientationEventCount = eventCount;
       
-      // USE REF TO BYPASS CLOSURE ISSUES
-      const currentGyroActive = isGyroActiveRef.current;
-      
       if (eventCount <= 3) { // Only log first 3 events
-        addDebugMessage(`🔥 ORIENTATION EVENT #${eventCount} - REF=${currentGyroActive} STATE=${isGyroActive}`);
+        addDebugMessage(`🔥 ORIENTATION EVENT #${eventCount} - PROCESSING!`);
       }
       
-      if (!currentGyroActive) {
-        if (eventCount <= 3) { // Only log first 3 failures
-          addDebugMessage(`❌ GYRO NOT ACTIVE #${eventCount} - REF=${currentGyroActive} STATE=${isGyroActive}`);
-        }
-        return;
-      }
+      // REMOVE STATE CHECK - if listener is active, just process the event!
       
       // Beta: front-back tilt (-180 to 180, negative forward)
       // Gamma: left-right tilt (-90 to 90, negative left)
@@ -374,7 +359,7 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage, isGyroActive, setI
     } catch (error) {
       addDebugMessage('❌ GYRO ERROR: ' + error.message);
     }
-  }, [addDebugMessage]); // Removed isGyroActive - using ref instead
+  }, [addDebugMessage, isGyroActive]); // Removed isGyroActive - using ref instead
 
   // OLD startGyroAnimation function removed - we now use direct Three.js control in handleDeviceOrientation
   const startGyroAnimation = () => {
