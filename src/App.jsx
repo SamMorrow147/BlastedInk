@@ -1113,7 +1113,7 @@ function App() {
           position: 'absolute',
           top: '20px',
           left: '20px',
-          maxWidth: '400px',
+          maxWidth: '50vw', // Max 50% of viewport width
           maxHeight: '600px',
           backgroundColor: 'rgba(0, 0, 0, 0.1)', // Very transparent
           color: 'rgba(255, 255, 255, 0.3)', // Very faint text
