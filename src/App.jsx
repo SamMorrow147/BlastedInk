@@ -23,15 +23,13 @@ function LoadingSpinner() {
 }
 
 // Interactive Chain component that hangs from top
-const InteractiveChain = React.forwardRef(({ addDebugMessage }, ref) => {
+const InteractiveChain = React.forwardRef(({ addDebugMessage, isGyroActive, setIsGyroActive, manualControlActive, setManualControlActive }, ref) => {
   const { scene } = useGLTF('/Blasted Chain-v6.glb')
   const groupRef = useRef()
-  const animationFrameRef = useRef(null)
+    const animationFrameRef = useRef(null)
   const [isSwinging, setIsSwinging] = useState(false)
-  const [isGyroActive, setIsGyroActive] = useState(false)
   const [showGyroButton, setShowGyroButton] = useState(false)
-    const [gyroError, setGyroError] = useState(null)
-  const [manualControlActive, setManualControlActive] = useState(false) // Flag to prevent auto-swing restart
+  const [gyroError, setGyroError] = useState(null)
   
 
   // Physics constants
@@ -284,25 +282,38 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage }, ref) => {
       
       gyroRef.current = { beta, gamma };
       
-      // Debug logging
-      addDebugMessage(`📱 GYRO: β=${beta.toFixed(1)}° γ=${gamma.toFixed(1)}°`);
+      // Debug logging (reduced frequency to avoid spam)
+      if (Date.now() % 10 < 2) { // Only log ~20% of the time
+        addDebugMessage(`📱 GYRO: β=${beta.toFixed(1)}° γ=${gamma.toFixed(1)}°`);
+      }
       
       // Convert to rotation with clamping
-      const sensitivity = 2.0; // MUCH higher sensitivity for testing
+      const sensitivity = 1.5; // Moderate sensitivity for smooth control
       const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
       
       // Convert to radians and clamp to reasonable range
-      const rotX = clamp(-(beta * sensitivity * Math.PI / 180), -2.0, 2.0);  // Bigger range
-      const rotY = clamp((gamma * sensitivity * Math.PI / 180), -2.0, 2.0);  // Bigger range
+      const rotX = clamp(-(beta * sensitivity * Math.PI / 180), -1.2, 1.2);  // ~±69° max
+      const rotY = clamp((gamma * sensitivity * Math.PI / 180), -1.2, 1.2);  // ~±69° max
       
-      // Update target for spring animation
-      gyroTargetRef.current = { x: rotX, y: rotY };
-      
-      // Debug the calculated targets
-      addDebugMessage(`🎯 TARGET: X=${rotX.toFixed(2)} Y=${rotY.toFixed(2)}`);
+      // DIRECT THREE.JS CONTROL (same technique as test button)
+      if (chainRef.current && chainRef.current.groupRef && chainRef.current.groupRef.current) {
+        const threeObject = chainRef.current.groupRef.current;
+        
+        // Apply rotation directly - INSTANT response like test button!
+        threeObject.rotation.x = rotX;
+        threeObject.rotation.y = rotY;
+        threeObject.rotation.z = 0;
+        
+        // Debug the applied rotation (reduced frequency)
+        if (Date.now() % 20 < 2) { // Only log ~10% of the time
+          addDebugMessage(`🎯 GYRO APPLIED: X=${(rotX * 180 / Math.PI).toFixed(1)}° Y=${(rotY * 180 / Math.PI).toFixed(1)}°`);
+        }
+      } else {
+        addDebugMessage('❌ GYRO: groupRef not available for direct control');
+      }
       
     } catch (error) {
-      addDebugMessage('❌ Orientation error: ' + error.message);
+      addDebugMessage('❌ GYRO ERROR: ' + error.message);
     }
   };
 
@@ -312,12 +323,27 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage }, ref) => {
       let lastFrameTime = Date.now();
       let frameCount = 0;
       
-      const gyroLoop = () => {
-        try {
-          if (!isGyroActive) {
-            console.log('⏹️ GYRO ANIMATION STOPPED - isGyroActive false');
-            return;
-          }
+              const gyroLoop = () => {
+          try {
+            if (!isGyroActive) {
+              addDebugMessage('⏹️ GYRO LOOP STOPPING - isGyroActive false');
+              if (animationFrameRef.current) {
+                cancelAnimationFrame(animationFrameRef.current);
+                animationFrameRef.current = null;
+              }
+              return;
+            }
+            
+            // Debug: check if this is interfering with manual control
+            if (manualControlActive) {
+              addDebugMessage('🚨 GYRO LOOP RUNNING DURING MANUAL CONTROL - STOPPING!');
+              setIsGyroActive(false);
+              if (animationFrameRef.current) {
+                cancelAnimationFrame(animationFrameRef.current);
+                animationFrameRef.current = null;
+              }
+              return;
+            }
           
           frameCount++;
           const now = Date.now();
@@ -355,6 +381,11 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage }, ref) => {
             scale: [currentScale, currentScale, currentScale],
             config: { tension: 200, friction: 30 }
           });
+          
+          // Debug: This could be overriding the test button!
+          if (manualControlActive && frameCount % 60 === 0) {
+            addDebugMessage('🚨 GYRO OVERRIDING MANUAL CONTROL: ' + JSON.stringify(finalRotation));
+          }
           
           // Debug every 60 frames - final output
           if (frameCount % 60 === 0) {
@@ -397,6 +428,13 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage }, ref) => {
 
   // Add initial swing animation on mount
   React.useEffect(() => {
+    addDebugMessage('🔄 useEffect TRIGGERED - isGyroActive: ' + isGyroActive + ', manualControlActive: ' + manualControlActive);
+    
+    // Check if this is interfering with test button execution
+    if (manualControlActive) {
+      addDebugMessage('⚠️ useEffect running with manualControlActive=true - this might interrupt test button!');
+    }
+    
     try {
       // Start with a gentle swing - slightly off-center with small initial velocity
       const initialRotationX = -0.15; // Slight backward tilt
@@ -412,15 +450,20 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage }, ref) => {
         startSwingAnimation(initialRotationX, initialRotationY, initialVelocity);
       } else if (manualControlActive) {
         addDebugMessage('⏸️ SKIPPING INITIAL SWING - MANUAL CONTROL ACTIVE');
+      } else if (isGyroActive) {
+        addDebugMessage('⏸️ SKIPPING INITIAL SWING - GYRO ACTIVE');
       }
       
       return () => {
+        addDebugMessage('🧹 useEffect CLEANUP - cancelling animation');
         // Clean up animation on unmount
         if (animationFrameRef.current) {
           cancelAnimationFrame(animationFrameRef.current);
+          animationFrameRef.current = null;
         }
       };
     } catch (error) {
+      addDebugMessage('❌ Error in useEffect: ' + error.message);
       console.error('Error in initial swing effect:', error);
     }
   }, [isGyroActive, manualControlActive]); // Add both dependencies
@@ -742,31 +785,71 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage }, ref) => {
     requestGyroPermission,
     disableGyroscope,
     api, // Expose the spring API for testing
+    groupRef, // Expose groupRef for direct Three.js manipulation
     stopSwingAnimation: () => {
+      addDebugMessage('🔍 STOP SWING CALLED - Stack trace:');
+      try {
+        throw new Error('Stop swing trace');
+      } catch (e) {
+        console.log('Stack trace:', e.stack);
+        addDebugMessage('📍 Called from: ' + (e.stack.split('\n')[2] || 'unknown'));
+      }
+      
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
         animationFrameRef.current = null;
+        addDebugMessage('❌ Animation frame cancelled');
       }
       setIsSwinging(false);
       addDebugMessage('⏹️ SWING ANIMATION STOPPED');
     }
   }));
 
-  return (
-    <a.group 
-      ref={groupRef}
-      position={[0, ANCHOR_Y, 0]} // Fixed position at top of viewport
-      rotation={rotation} // Only rotation changes, not position
-      scale={scale}
-      {...bind()}
-      style={{ cursor: isSwinging ? 'pointer' : 'grab' }}
-    >
-      {/* Chain model positioned below the pivot point */}
-      <group position={[0, CHAIN_OFFSET, 0]} scale={[16, 16, 16]}>
-        <primitive object={scene} />
+  // Use regular group for manual control, animated group for spring control  
+  const useManualControl = manualControlActive || isGyroActive;
+  
+  // Debug group switching (only log when it changes) - commented out to prevent infinite renders
+  const currentMode = useManualControl ? 'MANUAL' : 'SPRING';
+  const lastModeRef = useRef(null);
+  // Removed debug message to prevent infinite re-renders
+  lastModeRef.current = currentMode;
+  
+  if (useManualControl) {
+    // Manual control mode - no spring binding, but keep scale for visibility
+    return (
+      <group 
+        ref={groupRef}
+        position={[0, ANCHOR_Y, 0]} // Fixed position at top of viewport
+        scale={[1.5, 1.5, 1.5]}     // Fixed scale for visibility (no spring binding)
+        rotation={[0, 0, 0]}        // Start with zero rotation for debugging
+        // No rotation binding - pure Three.js control for rotation only
+        {...bind()}
+        style={{ cursor: 'grab' }}
+      >
+        {/* Chain model positioned below the pivot point */}
+        <group position={[0, CHAIN_OFFSET, 0]} scale={[16, 16, 16]}>
+          <primitive object={scene} />
+        </group>
       </group>
-    </a.group>
-  )
+    );
+  } else {
+    // Spring control mode - animated
+    return (
+      <a.group 
+        ref={groupRef}
+        position={[0, ANCHOR_Y, 0]} // Fixed position at top of viewport
+        rotation={rotation} // Spring-controlled rotation
+        scale={scale}       // Spring-controlled scale
+        {...bind()}
+        style={{ cursor: isSwinging ? 'pointer' : 'grab' }}
+      >
+        {/* Chain model positioned below the pivot point */}
+        <group position={[0, CHAIN_OFFSET, 0]} scale={[16, 16, 16]}>
+          <primitive object={scene} />
+        </group>
+      </a.group>
+    );
+  }
 });
 
 // Add display name for forwardRef
@@ -874,11 +957,13 @@ function App() {
   });
   
   const [debugMessages, setDebugMessages] = useState([]);
+  const [manualControlActive, setManualControlActive] = useState(false); // Move here!
+  const [isGyroActive, setIsGyroActive] = useState(false); // Move here!
   
   // Add debug message function
   const addDebugMessage = (message) => {
     const timestamp = new Date().toLocaleTimeString();
-    setDebugMessages(prev => [...prev.slice(-4), `${timestamp}: ${message}`]);
+    setDebugMessages(prev => [...prev.slice(-99), `${timestamp}: ${message}`]); // Keep last 100 messages
     console.log(message);
   };
 
@@ -1032,7 +1117,14 @@ function App() {
 
         {/* Interactive Chain Model */}
         <Suspense fallback={null}>
-          <InteractiveChain ref={chainRef} addDebugMessage={addDebugMessage} />
+          <InteractiveChain 
+            ref={chainRef} 
+            addDebugMessage={addDebugMessage}
+            isGyroActive={isGyroActive}
+            setIsGyroActive={setIsGyroActive}
+            manualControlActive={manualControlActive}
+            setManualControlActive={setManualControlActive}
+          />
         </Suspense>
       </Canvas>
 
@@ -1051,19 +1143,21 @@ function App() {
           position: 'absolute',
           top: '20px',
           left: '20px',
-          maxWidth: '300px',
-          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          maxWidth: '400px',
+          maxHeight: '600px', // Make it much taller for 100 messages
+          backgroundColor: 'rgba(0, 0, 0, 0.9)',
           color: 'white',
           padding: '12px',
           borderRadius: '8px',
-          fontSize: '12px',
+          fontSize: '11px',
           fontFamily: 'monospace',
           zIndex: 1000,
-          lineHeight: '1.4'
+          lineHeight: '1.3',
+          overflowY: 'auto' // Add scrolling if needed
         }}>
-          <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>🔍 Debug Log:</div>
+          <div style={{ fontWeight: 'bold', marginBottom: '8px', position: 'sticky', top: 0, backgroundColor: 'rgba(0, 0, 0, 0.9)' }}>🔍 Debug Log (Last 10):</div>
           {debugMessages.map((msg, i) => (
-            <div key={i} style={{ marginBottom: '2px' }}>{msg}</div>
+            <div key={i} style={{ marginBottom: '2px', fontSize: '10px' }}>{msg}</div>
           ))}
         </div>
       )}
@@ -1071,43 +1165,228 @@ function App() {
       {/* Test Movement Button */}
       <button
         onClick={() => {
-          addDebugMessage('🎲 TEST BUTTON CLICKED');
+          try {
+            addDebugMessage('🎲 TEST BUTTON CLICKED');
           
-          // STOP any running swing animation first AND prevent it from restarting
+                    // STOP any running swing animation first AND prevent it from restarting
+          addDebugMessage('🎯 ABOUT TO STOP SWING...');
           if (chainRef.current && chainRef.current.stopSwingAnimation) {
             chainRef.current.stopSwingAnimation();
-          }
-                      setManualControlActive(true); // Prevent useEffect from restarting swing
-            addDebugMessage('🔒 MANUAL CONTROL ACTIVATED');
-          
-          // Test spring animation (proper way) - EXTREME movements
-          const randomRotation = [
-            (Math.random() - 0.5) * Math.PI * 3.0,  // EXTREME rotation (540 degrees!)
-            (Math.random() - 0.5) * Math.PI * 3.0,  // EXTREME rotation (540 degrees!)
-            0
-          ];
-          
-          // Test via spring API (correct method) with IMMEDIATE movement
-          if (chainRef.current && chainRef.current.api) {
-            chainRef.current.api.start({
-              rotation: randomRotation,
-              config: { 
-                tension: 300,   // Higher tension = faster movement
-                friction: 25,   // Lower friction = less damping  
-                mass: 1
-              }
-            });
-            addDebugMessage('🎲 SPRING ROTATION: ' + JSON.stringify(randomRotation));
-            
-            // Add a delay to check what the actual rotation becomes
-            setTimeout(() => {
-              if (chainRef.current && chainRef.current.api) {
-                const currentRotation = chainRef.current.api.current;
-                addDebugMessage('📍 ACTUAL ROTATION: ' + JSON.stringify(currentRotation?.rotation));
-              }
-            }, 500);  // Check after spring settles
+            addDebugMessage('✅ STOP SWING COMPLETED');
           } else {
-            addDebugMessage('❌ chainRef.current or api not available');
+            addDebugMessage('❌ NO STOP SWING FUNCTION FOUND');
+          }
+          
+          addDebugMessage('🎯 SETTING MANUAL CONTROL...');
+          
+          try {
+            // This state change might trigger useEffect and interrupt us!
+            setManualControlActive(true); // Prevent useEffect from restarting swing
+            addDebugMessage('🔒 MANUAL CONTROL ACTIVATED - STATE SET');
+          } catch (error) {
+            addDebugMessage('❌ ERROR SETTING MANUAL CONTROL: ' + error.message);
+          }
+          
+          addDebugMessage('🎯 CONTINUING TO ROTATION LOGIC...');
+          
+          // Test spring animation - DRAMATIC and VARIED movements for testing
+          const clickCount = Date.now() % 4; // Use timestamp to get 0,1,2,3 pattern
+          let randomRotation;
+          
+          switch(clickCount) {
+            case 0: randomRotation = [0.8, 0.6, 0]; break;        // ~46°, ~34°
+            case 1: randomRotation = [-0.6, 0.8, 0]; break;       // ~-34°, ~46°  
+            case 2: randomRotation = [0.4, -0.9, 0]; break;       // ~23°, ~-52°
+            case 3: randomRotation = [-0.9, -0.4, 0]; break;      // ~-52°, ~-23°
+          }
+          
+          addDebugMessage('🎯 DRAMATIC ROTATION #' + clickCount + ': ' + JSON.stringify(randomRotation.map(r => (r * 180 / Math.PI).toFixed(1) + '°')));
+          
+                      // COMPREHENSIVE ANIMATION STOPPING
+            addDebugMessage('🛑 STOPPING ALL ANIMATIONS...');
+            
+            // Stop gyro animation if running 
+            if (isGyroActive) {
+              addDebugMessage('⚠️ GYRO WAS ACTIVE - DISABLING');
+              setIsGyroActive(false);
+            }
+            
+            // Stop ALL spring animations first
+            if (chainRef.current && chainRef.current.api) {
+              chainRef.current.api.stop();
+              addDebugMessage('🔴 ALL SPRING ANIMATIONS STOPPED');
+              
+              // Apply rotation IMMEDIATELY (no setTimeout delay)
+              addDebugMessage('🎯 APPLYING SPRING ROTATION...');
+              chainRef.current.api.start({
+                rotation: randomRotation,
+                config: { 
+                  tension: 800,    // MUCH higher tension
+                  friction: 5,     // MUCH lower friction  
+                  mass: 0.3        // Very light mass
+                }
+              });
+              addDebugMessage('🎲 SPRING ROTATION: ' + JSON.stringify(randomRotation));
+              
+              // BYPASS SPRING SYSTEM ENTIRELY - Use pure Three.js control
+              setTimeout(() => {
+                if (chainRef.current && chainRef.current.groupRef && chainRef.current.groupRef.current) {
+                  addDebugMessage('🎯 BYPASSING SPRING SYSTEM - PURE THREE.JS MODE');
+                  
+                  // Get the Three.js object directly
+                  const threeObject = chainRef.current.groupRef.current;
+                  
+                  // COMPLETELY disconnect from spring system
+                  addDebugMessage('🔌 DISCONNECTING FROM SPRING SYSTEM');
+                  
+                  // Apply direct rotation
+                  threeObject.rotation.x = randomRotation[0];
+                  threeObject.rotation.y = randomRotation[1];
+                  threeObject.rotation.z = randomRotation[2];
+                  addDebugMessage('✅ PURE THREE.JS ROTATION APPLIED');
+                  
+                  // Lock the position by overriding any future spring updates
+                  const targetRotation = {
+                    x: randomRotation[0],
+                    y: randomRotation[1], 
+                    z: randomRotation[2]
+                  };
+                  
+                  // Set up a monitor to FORCE the position every frame
+                  let lockCounter = 0;
+                  const lockPosition = () => {
+                    if (lockCounter < 120 && threeObject) { // Lock for 120 frames (~2 seconds at 60fps)
+                      // Read current position before forcing
+                      const before = {
+                        x: threeObject.rotation.x,
+                        y: threeObject.rotation.y,
+                        z: threeObject.rotation.z
+                      };
+                      
+                      // Force the target position  
+                      threeObject.rotation.x = targetRotation.x;
+                      threeObject.rotation.y = targetRotation.y;
+                      threeObject.rotation.z = targetRotation.z;
+                      
+                      // Check if it stuck
+                      const after = {
+                        x: threeObject.rotation.x,
+                        y: threeObject.rotation.y,
+                        z: threeObject.rotation.z
+                      };
+                      
+                      // Debug every 10th frame
+                      if (lockCounter % 10 === 0) {
+                        addDebugMessage(`🔒 FRAME ${lockCounter}: BEFORE=[${before.x.toFixed(3)}, ${before.y.toFixed(3)}, ${before.z.toFixed(3)}] AFTER=[${after.x.toFixed(3)}, ${after.y.toFixed(3)}, ${after.z.toFixed(3)}]`);
+                        
+                        const distance = Math.sqrt((after.x - targetRotation.x)**2 + (after.y - targetRotation.y)**2);
+                        if (distance > 0.1) {
+                          addDebugMessage(`⚠️ LOCK FAILED! Target not sticking. Distance: ${distance.toFixed(3)}`);
+                        }
+                      }
+                      
+                      lockCounter++;
+                      requestAnimationFrame(lockPosition);
+                    } else {
+                      addDebugMessage('🔒 POSITION LOCKED FOR 120 FRAMES - TESTING STABILITY');
+                    }
+                  };
+                  lockPosition();
+                  addDebugMessage('🔒 POSITION LOCK ACTIVATED');
+                  
+                  // Verify it stays put
+                  setTimeout(() => {
+                    const actual = chainRef.current.groupRef.current.rotation;
+                    addDebugMessage(`🔍 POSITION CHECK: [${actual.x.toFixed(3)}, ${actual.y.toFixed(3)}, ${actual.z.toFixed(3)}]`);
+                    addDebugMessage(`📍 TARGET WAS: [${randomRotation[0].toFixed(3)}, ${randomRotation[1].toFixed(3)}, ${randomRotation[2].toFixed(3)}]`);
+                    
+                    const distance = Math.sqrt((actual.x - randomRotation[0])**2 + (actual.y - randomRotation[1])**2);
+                    if (distance < 0.1) {
+                      addDebugMessage('✅ POSITION HOLDING STEADY!');
+                    } else {
+                      addDebugMessage('⚠️ POSITION DRIFTED! Distance: ' + distance.toFixed(3));
+                    }
+                  }, 1000);
+                  
+                } else {
+                  addDebugMessage('❌ groupRef not accessible for direct rotation');
+                }
+              }, 1000);
+              
+              // Immediate check right after api.start()
+              setTimeout(() => {
+                if (chainRef.current && chainRef.current.api) {
+                  const immediate = chainRef.current.api.current;
+                  addDebugMessage('🚀 IMMEDIATE CHECK:');
+                  addDebugMessage('🔍 API exists: ' + !!chainRef.current.api);
+                  addDebugMessage('🔍 API.current exists: ' + !!immediate);
+                  addDebugMessage('🔍 API.current type: ' + typeof immediate);
+                  if (immediate) {
+                    addDebugMessage('🔍 API.current: ' + JSON.stringify(immediate));
+                  }
+                }
+              }, 50);
+              
+              // Monitor position immediately with better diagnostics
+              let checkCount = 0;
+              const monitorPosition = () => {
+                if (checkCount < 10 && chainRef.current && chainRef.current.api) {
+                  try {
+                    const current = chainRef.current.api.current;
+                    addDebugMessage(`🔍 T+${(checkCount * 500)}ms - API.current exists: ${!!current}`);
+                    
+                    if (current && current.length > 0) {
+                      addDebugMessage(`🔍 Current array length: ${current.length}`);
+                      const firstSpring = current[0];
+                      
+                      if (firstSpring && firstSpring.springs) {
+                        const actualRot = firstSpring.springs.rotation;
+                        addDebugMessage(`🔍 Springs.rotation exists: ${!!actualRot}`);
+                        
+                                                 if (actualRot && Array.isArray(actualRot) && actualRot.length >= 2) {
+                           const rotStr = `[${(actualRot[0] || 0).toFixed(3)}, ${(actualRot[1] || 0).toFixed(3)}, ${(actualRot[2] || 0).toFixed(3)}]`;
+                           addDebugMessage(`🔍 Position: ${rotStr}`);
+                           
+                           if (checkCount === 0) {
+                             addDebugMessage(`📍 Target: [${randomRotation[0].toFixed(3)}, ${randomRotation[1].toFixed(3)}, 0]`);
+                             
+                             // Calculate how far off we are
+                             const distance = Math.sqrt(
+                               (actualRot[0] - randomRotation[0])**2 + 
+                               (actualRot[1] - randomRotation[1])**2
+                             );
+                             addDebugMessage(`📍 Distance from target: ${distance.toFixed(3)} (should be close to 0)`);
+                             
+                             if (distance > 1.0) {
+                               addDebugMessage(`🚨 SPRING IS SEVERELY DAMPED! Only ${((1-distance/Math.sqrt(randomRotation[0]**2+randomRotation[1]**2))*100).toFixed(1)}% of target reached`);
+                             }
+                           }
+                         } else {
+                           addDebugMessage(`❌ Rotation array invalid: ${JSON.stringify(actualRot)}`);
+                         }
+                      } else {
+                        addDebugMessage(`❌ No springs found in: ${JSON.stringify(Object.keys(firstSpring || {}))}`);
+                      }
+                    } else {
+                      addDebugMessage(`❌ API.current is empty or invalid: ${JSON.stringify(current)}`);
+                    }
+                  } catch (monitorError) {
+                    addDebugMessage('❌ Monitor error: ' + monitorError.message);
+                  }
+                  checkCount++;
+                  setTimeout(monitorPosition, 500);
+                }
+              };
+              
+              // Start monitoring immediately
+              monitorPosition();
+              
+            } else {
+              addDebugMessage('❌ chainRef.current or api not available');
+            }
+          } catch (error) {
+            addDebugMessage('💥 TEST BUTTON ERROR: ' + error.message);
+            console.error('Test button error:', error);
           }
         }}
         style={{
