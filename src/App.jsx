@@ -133,46 +133,81 @@ const InteractiveChain = React.forwardRef((props, ref) => {
 
   const enableGyroscope = async () => {
     try {
+      console.log('🎬 ENABLE GYROSCOPE CALLED');
+      
       // Try DeviceOrientation first (better for tilt-based control)
       if (typeof window !== 'undefined' && window.DeviceOrientationEvent) {
+        console.log('✅ DeviceOrientationEvent available');
+        
         if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+          console.log('📱 iOS 13+ - requesting permission...');
           const permission = await DeviceOrientationEvent.requestPermission();
+          console.log('🔐 Permission result:', permission);
+          
           if (permission === 'granted') {
             console.log('🚀 ORIENTATION PERMISSION GRANTED!');
             window.addEventListener('deviceorientation', handleDeviceOrientation);
+            console.log('👂 Event listener added');
             setIsGyroActive(true);
+            console.log('🔄 isGyroActive set to true');
             startGyroAnimation(); // Start animation loop immediately
+            return;
+          } else {
+            console.log('❌ Permission denied:', permission);
+            setGyroError('Permission denied: ' + permission);
             return;
           }
         } else {
           // Android or older iOS
+          console.log('🤖 Android/older iOS - no permission needed');
           window.addEventListener('deviceorientation', handleDeviceOrientation);
+          console.log('👂 Event listener added');
           setIsGyroActive(true);
+          console.log('🔄 isGyroActive set to true');
           startGyroAnimation(); // Start animation loop immediately
           return;
         }
+      } else {
+        console.log('❌ DeviceOrientationEvent not available');
       }
 
       // Fallback to DeviceMotion if orientation not available
       if (typeof window !== 'undefined' && window.DeviceMotionEvent) {
+        console.log('✅ DeviceMotionEvent available');
+        
         if (typeof DeviceMotionEvent.requestPermission === 'function') {
+          console.log('📱 iOS 13+ - requesting motion permission...');
           const permission = await DeviceMotionEvent.requestPermission();
+          console.log('🔐 Motion permission result:', permission);
+          
           if (permission === 'granted') {
             console.log('🚀 MOTION PERMISSION GRANTED!');
             window.addEventListener('devicemotion', handleDeviceMotion);
+            console.log('👂 Motion event listener added');
             setIsGyroActive(true);
+            console.log('🔄 isGyroActive set to true');
             startGyroAnimation(); // Start animation loop immediately
+            return;
+          } else {
+            console.log('❌ Motion permission denied:', permission);
+            setGyroError('Motion permission denied: ' + permission);
             return;
           }
         } else {
           // Android or older iOS
+          console.log('🤖 Android/older iOS - no motion permission needed');
           window.addEventListener('devicemotion', handleDeviceMotion);
+          console.log('👂 Motion event listener added');
           setIsGyroActive(true);
+          console.log('🔄 isGyroActive set to true');
           startGyroAnimation(); // Start animation loop immediately
           return;
         }
+      } else {
+        console.log('❌ DeviceMotionEvent not available');
       }
 
+      console.log('❌ No sensor support found');
       setGyroError('No orientation or motion support found');
     } catch (error) {
       console.error('❌ Error enabling sensors:', error);
