@@ -335,8 +335,12 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage, isGyroActive, setI
       const sensitivity = 1.5; // Moderate sensitivity for smooth control
       const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
       
+      // Adjust beta so that holding phone upright (beta ~90°) shows chain straight
+      // When phone is upright, beta is around 90°, so subtract 90° to make that the "zero" position
+      const adjustedBeta = beta - 90; // Now upright phone position = 0°
+      
       // Convert to radians and clamp to reasonable range
-      const rotX = clamp(-(beta * sensitivity * Math.PI / 180), -1.2, 1.2);  // ~±69° max
+      const rotX = clamp(-(adjustedBeta * sensitivity * Math.PI / 180), -1.2, 1.2);  // ~±69° max
       const rotY = clamp((gamma * sensitivity * Math.PI / 180), -1.2, 1.2);  // ~±69° max
       
       // DIRECT THREE.JS CONTROL (same technique as test button)
