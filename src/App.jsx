@@ -1107,25 +1107,26 @@ function App() {
         onDisable={handleDisableGyro}
       />
 
-      {/* Debug Messages Panel */}
+      {/* Debug Messages Panel - Mostly Transparent */}
       {debugMessages.length > 0 && (
         <div style={{
           position: 'absolute',
           top: '20px',
           left: '20px',
           maxWidth: '400px',
-          maxHeight: '600px', // Make it much taller for 100 messages
-          backgroundColor: 'rgba(0, 0, 0, 0.9)',
-          color: 'white',
+          maxHeight: '600px',
+          backgroundColor: 'rgba(0, 0, 0, 0.1)', // Very transparent
+          color: 'rgba(255, 255, 255, 0.3)', // Very faint text
           padding: '12px',
           borderRadius: '8px',
           fontSize: '11px',
           fontFamily: 'monospace',
           zIndex: 1000,
           lineHeight: '1.3',
-          overflowY: 'auto' // Add scrolling if needed
+          overflowY: 'auto',
+          pointerEvents: 'none' // Make it non-interactive
         }}>
-          <div style={{ fontWeight: 'bold', marginBottom: '8px', position: 'sticky', top: 0, backgroundColor: 'rgba(0, 0, 0, 0.9)' }}>🔍 Debug Log (Last 10):</div>
+          <div style={{ fontWeight: 'bold', marginBottom: '8px', position: 'sticky', top: 0, backgroundColor: 'rgba(0, 0, 0, 0.1)', color: 'rgba(255, 255, 255, 0.4)' }}>🔍 Debug Log:</div>
           {debugMessages.map((msg, i) => (
             <div key={i} style={{ marginBottom: '2px', fontSize: '10px' }}>{msg}</div>
           ))}
