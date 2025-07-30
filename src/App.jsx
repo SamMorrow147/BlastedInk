@@ -305,7 +305,7 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage, isGyroActive, setI
     }
   };
 
-  const handleDeviceOrientation = (event) => {
+  const handleDeviceOrientation = React.useCallback((event) => {
     try {
       // STOP THE SPAM - only log first few events for debugging
       const eventCount = (window.orientationEventCount || 0) + 1;
@@ -362,7 +362,7 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage, isGyroActive, setI
     } catch (error) {
       addDebugMessage('❌ GYRO ERROR: ' + error.message);
     }
-  };
+  }, [isGyroActive, addDebugMessage]); // Add dependencies to ensure fresh state
 
   // OLD startGyroAnimation function removed - we now use direct Three.js control in handleDeviceOrientation
   const startGyroAnimation = () => {
@@ -927,11 +927,11 @@ function App() {
   const [isGyroActive, setIsGyroActiveRaw] = useState(false); // Move here!
   
   // Add debug message function (must be before setIsGyroActive wrapper)
-  const addDebugMessage = (message) => {
+  const addDebugMessage = React.useCallback((message) => {
     const timestamp = new Date().toLocaleTimeString();
     setDebugMessages(prev => [...prev.slice(-99), `${timestamp}: ${message}`]); // Keep last 100 messages
     console.log(message);
-  };
+  }, []);
   
   // Wrapped setter with debugging
   const setIsGyroActive = (value) => {
