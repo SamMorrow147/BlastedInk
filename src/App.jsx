@@ -343,23 +343,24 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage, isGyroActive, setI
       // Map the full 90° phone tilt range to full 1.2 radian chain range
       let rotX = clamp(-(adjustedBeta / 90) * 1.2, -1.2, 1.2); // Full range utilization
       
-      // Special handling when phone is nearly upright (vertical position)
-      const uprightThreshold = 20; // Within 20° of vertical
-      const isNearUpright = Math.abs(adjustedBeta) < uprightThreshold;
+      // Smooth transition between upright and tilted modes
+      const uprightThreshold = 30; // Transition zone: 0-30° from vertical
+      const uprightAmount = Math.max(0, Math.min(1, (uprightThreshold - Math.abs(adjustedBeta)) / uprightThreshold));
       
-      let rotY;
-      if (isNearUpright) {
-        // When upright: bias toward forward position and reduce left/right sensitivity
-        rotX = rotX * 0.7 - 0.2; // Bias forward and reduce range
-        
-        // Much slower, smoother left/right movement when upright
-        const deadzone = 5; // 5° deadzone to prevent jitter
-        const adjustedGamma = Math.abs(gamma) > deadzone ? gamma - Math.sign(gamma) * deadzone : 0;
-        rotY = clamp((adjustedGamma * 0.8 * Math.PI / 180), -0.6, 0.6); // Reduced sensitivity and range
-      } else {
-        // Normal left/right sensitivity when tilted
-        rotY = clamp((gamma * 1.5 * Math.PI / 180), -1.2, 1.2);
-      }
+      // Smoothly blend between normal and upright behavior
+      const forwardBias = uprightAmount * -0.2; // Gradually apply forward bias
+      const rangeReduction = uprightAmount * 0.3; // Gradually reduce range
+      rotX = (rotX * (1 - rangeReduction)) + forwardBias;
+      
+      // Smooth transition for left/right sensitivity
+      const deadzone = uprightAmount * 5; // Gradual deadzone application
+      const adjustedGamma = Math.abs(gamma) > deadzone ? gamma - Math.sign(gamma) * deadzone : 0;
+      
+      // Blend between full sensitivity (1.5) and reduced sensitivity (0.8)
+      const sensitivity = 1.5 - (uprightAmount * 0.7); // 1.5 → 0.8
+      const maxRange = 1.2 - (uprightAmount * 0.6); // 1.2 → 0.6
+      
+      const rotY = clamp((adjustedGamma * sensitivity * Math.PI / 180), -maxRange, maxRange);
       
       // DIRECT THREE.JS CONTROL (same technique as test button)
       if (groupRef.current) {
