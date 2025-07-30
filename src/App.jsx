@@ -72,6 +72,12 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage, isGyroActive, setI
   const gyroTargetRef = useRef({ x: 0, y: 0 })
   const gyroSmoothingRef = useRef({ x: 0, y: 0 })
   
+  // Add smoothing buffer for gyroscope values to reduce jitter
+  const gyroHistoryRef = useRef({ 
+    beta: [90, 90, 90, 90, 90], // Initialize with upright position (90°)
+    gamma: [0, 0, 0, 0, 0] 
+  })
+  
   // Secondary motion for chain links
   const secondaryMotionRef = useRef({ x: 0, y: 0, z: 0 })
   const secondaryVelocityRef = useRef({ x: 0, y: 0, z: 0 })
@@ -321,8 +327,26 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage, isGyroActive, setI
       
       // Beta: front-back tilt (-180 to 180, negative forward)
       // Gamma: left-right tilt (-90 to 90, negative left)
-      const beta = event.beta || 0;   // Front-back tilt
-      const gamma = event.gamma || 0; // Left-right tilt
+      const rawBeta = event.beta || 0;   // Front-back tilt
+      const rawGamma = event.gamma || 0; // Left-right tilt
+      
+      // Add to smoothing buffer and remove oldest value
+      gyroHistoryRef.current.beta.push(rawBeta);
+      gyroHistoryRef.current.gamma.push(rawGamma);
+      gyroHistoryRef.current.beta.shift(); // Remove oldest
+      gyroHistoryRef.current.gamma.shift(); // Remove oldest
+      
+      // Calculate smoothed values by averaging recent readings
+      let beta = gyroHistoryRef.current.beta.reduce((sum, val) => sum + val, 0) / 5;
+      let gamma = gyroHistoryRef.current.gamma.reduce((sum, val) => sum + val, 0) / 5;
+      
+      // Extra smoothing when near upright to eliminate center jitter
+      const distanceFromUpright = Math.abs(beta - 90);
+      if (distanceFromUpright < 20) { // When close to upright (90°)
+        const extraSmoothingFactor = 0.7; // How much to blend with previous value (0-1)
+        beta = gyroRef.current.beta * extraSmoothingFactor + beta * (1 - extraSmoothingFactor);
+        gamma = gyroRef.current.gamma * extraSmoothingFactor + gamma * (1 - extraSmoothingFactor);
+      }
       
       gyroRef.current = { beta, gamma };
       
