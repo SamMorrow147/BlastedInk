@@ -23,7 +23,7 @@ function LoadingSpinner() {
 }
 
 // Interactive Chain component that hangs from top
-const InteractiveChain = React.forwardRef((props, ref) => {
+const InteractiveChain = React.forwardRef(({ addDebugMessage }, ref) => {
   const { scene } = useGLTF('/Blasted Chain-v6.glb')
   const groupRef = useRef()
   const animationFrameRef = useRef(null)
@@ -31,6 +31,7 @@ const InteractiveChain = React.forwardRef((props, ref) => {
   const [isGyroActive, setIsGyroActive] = useState(false)
   const [showGyroButton, setShowGyroButton] = useState(false)
   const [gyroError, setGyroError] = useState(null)
+
   
   // Physics constants
   const CHAIN_LENGTH = 5.0 // Virtual chain length for physics calculations
@@ -133,84 +134,84 @@ const InteractiveChain = React.forwardRef((props, ref) => {
 
   const enableGyroscope = async () => {
     try {
-      console.log('🎬 ENABLE GYROSCOPE CALLED');
+      addDebugMessage('🎬 ENABLE GYROSCOPE CALLED');
       
       // Try DeviceOrientation first (better for tilt-based control)
       if (typeof window !== 'undefined' && window.DeviceOrientationEvent) {
-        console.log('✅ DeviceOrientationEvent available');
+        addDebugMessage('✅ DeviceOrientationEvent available');
         
         if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-          console.log('📱 iOS 13+ - requesting permission...');
+          addDebugMessage('📱 iOS 13+ - requesting permission...');
           const permission = await DeviceOrientationEvent.requestPermission();
-          console.log('🔐 Permission result:', permission);
+          addDebugMessage('🔐 Permission result: ' + permission);
           
           if (permission === 'granted') {
-            console.log('🚀 ORIENTATION PERMISSION GRANTED!');
+            addDebugMessage('🚀 ORIENTATION PERMISSION GRANTED!');
             window.addEventListener('deviceorientation', handleDeviceOrientation);
-            console.log('👂 Event listener added');
+            addDebugMessage('👂 Event listener added');
             setIsGyroActive(true);
-            console.log('🔄 isGyroActive set to true');
+            addDebugMessage('🔄 isGyroActive set to true');
             startGyroAnimation(); // Start animation loop immediately
             return;
           } else {
-            console.log('❌ Permission denied:', permission);
+            addDebugMessage('❌ Permission denied: ' + permission);
             setGyroError('Permission denied: ' + permission);
             return;
           }
         } else {
           // Android or older iOS
-          console.log('🤖 Android/older iOS - no permission needed');
+          addDebugMessage('🤖 Android/older iOS - no permission needed');
           window.addEventListener('deviceorientation', handleDeviceOrientation);
-          console.log('👂 Event listener added');
+          addDebugMessage('👂 Event listener added');
           setIsGyroActive(true);
-          console.log('🔄 isGyroActive set to true');
+          addDebugMessage('🔄 isGyroActive set to true');
           startGyroAnimation(); // Start animation loop immediately
           return;
         }
       } else {
-        console.log('❌ DeviceOrientationEvent not available');
+        addDebugMessage('❌ DeviceOrientationEvent not available');
       }
 
       // Fallback to DeviceMotion if orientation not available
       if (typeof window !== 'undefined' && window.DeviceMotionEvent) {
-        console.log('✅ DeviceMotionEvent available');
+        addDebugMessage('✅ DeviceMotionEvent available');
         
         if (typeof DeviceMotionEvent.requestPermission === 'function') {
-          console.log('📱 iOS 13+ - requesting motion permission...');
+          addDebugMessage('📱 iOS 13+ - requesting motion permission...');
           const permission = await DeviceMotionEvent.requestPermission();
-          console.log('🔐 Motion permission result:', permission);
+          addDebugMessage('🔐 Motion permission result: ' + permission);
           
           if (permission === 'granted') {
-            console.log('🚀 MOTION PERMISSION GRANTED!');
+            addDebugMessage('🚀 MOTION PERMISSION GRANTED!');
             window.addEventListener('devicemotion', handleDeviceMotion);
-            console.log('👂 Motion event listener added');
+            addDebugMessage('👂 Motion event listener added');
             setIsGyroActive(true);
-            console.log('🔄 isGyroActive set to true');
+            addDebugMessage('🔄 isGyroActive set to true');
             startGyroAnimation(); // Start animation loop immediately
             return;
           } else {
-            console.log('❌ Motion permission denied:', permission);
+            addDebugMessage('❌ Motion permission denied: ' + permission);
             setGyroError('Motion permission denied: ' + permission);
             return;
           }
         } else {
           // Android or older iOS
-          console.log('🤖 Android/older iOS - no motion permission needed');
+          addDebugMessage('🤖 Android/older iOS - no motion permission needed');
           window.addEventListener('devicemotion', handleDeviceMotion);
-          console.log('👂 Motion event listener added');
+          addDebugMessage('👂 Motion event listener added');
           setIsGyroActive(true);
-          console.log('🔄 isGyroActive set to true');
+          addDebugMessage('🔄 isGyroActive set to true');
           startGyroAnimation(); // Start animation loop immediately
           return;
         }
       } else {
-        console.log('❌ DeviceMotionEvent not available');
+        addDebugMessage('❌ DeviceMotionEvent not available');
       }
 
-      console.log('❌ No sensor support found');
+      addDebugMessage('❌ No sensor support found');
       setGyroError('No orientation or motion support found');
     } catch (error) {
-      console.error('❌ Error enabling sensors:', error);
+      addDebugMessage('❌ Error enabling sensors: ' + error.message);
       setGyroError('Failed to enable: ' + error.message);
     }
   };
@@ -306,7 +307,7 @@ const InteractiveChain = React.forwardRef((props, ref) => {
 
     const startGyroAnimation = () => {
     try {
-      console.log('🚀 STARTING GYRO ANIMATION LOOP');
+      addDebugMessage('🚀 STARTING GYRO ANIMATION LOOP');
       let lastFrameTime = Date.now();
       let frameCount = 0;
       
@@ -861,6 +862,15 @@ function App() {
     isActive: false,
     error: null
   });
+  
+  const [debugMessages, setDebugMessages] = useState([]);
+  
+  // Add debug message function
+  const addDebugMessage = (message) => {
+    const timestamp = new Date().toLocaleTimeString();
+    setDebugMessages(prev => [...prev.slice(-4), `${timestamp}: ${message}`]);
+    console.log(message);
+  };
 
   // Gyroscope handlers
   const chainRef = useRef();
@@ -1012,7 +1022,7 @@ function App() {
 
         {/* Interactive Chain Model */}
         <Suspense fallback={null}>
-          <InteractiveChain ref={chainRef} />
+          <InteractiveChain ref={chainRef} addDebugMessage={addDebugMessage} />
         </Suspense>
       </Canvas>
 
@@ -1025,10 +1035,33 @@ function App() {
         onDisable={handleDisableGyro}
       />
 
+      {/* Debug Messages Panel */}
+      {debugMessages.length > 0 && (
+        <div style={{
+          position: 'absolute',
+          top: '20px',
+          left: '20px',
+          maxWidth: '300px',
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          color: 'white',
+          padding: '12px',
+          borderRadius: '8px',
+          fontSize: '12px',
+          fontFamily: 'monospace',
+          zIndex: 1000,
+          lineHeight: '1.4'
+        }}>
+          <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>🔍 Debug Log:</div>
+          {debugMessages.map((msg, i) => (
+            <div key={i} style={{ marginBottom: '2px' }}>{msg}</div>
+          ))}
+        </div>
+      )}
+
       {/* Test Movement Button */}
       <button
         onClick={() => {
-          console.log('🎲 TEST BUTTON CLICKED');
+          addDebugMessage('🎲 TEST BUTTON CLICKED');
           
           // Test spring animation (proper way)
           const randomRotation = [
@@ -1043,9 +1076,9 @@ function App() {
               rotation: randomRotation,
               config: { tension: 200, friction: 30 }
             });
-            console.log('🎲 SPRING ROTATION:', randomRotation);
+            addDebugMessage('🎲 SPRING ROTATION: ' + JSON.stringify(randomRotation));
           } else {
-            console.log('❌ chainRef.current or api not available');
+            addDebugMessage('❌ chainRef.current or api not available');
           }
         }}
         style={{
