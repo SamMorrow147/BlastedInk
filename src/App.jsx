@@ -167,7 +167,7 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage, isGyroActive, setI
             
             // Add periodic state checker
             const stateChecker = setInterval(() => {
-              addDebugMessage(`📊 GYRO STATE CHECK: isGyroActive=${isGyroActive}`);
+              addDebugMessage(`📊 GYRO STATE CHECK: REF=${isGyroActiveRef.current} STATE=${isGyroActive}`);
             }, 2000); // Check every 2 seconds
             
             // Clean up checker after 10 seconds
@@ -311,13 +311,16 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage, isGyroActive, setI
       const eventCount = (window.orientationEventCount || 0) + 1;
       window.orientationEventCount = eventCount;
       
+      // USE REF TO BYPASS CLOSURE ISSUES
+      const currentGyroActive = isGyroActiveRef.current;
+      
       if (eventCount <= 3) { // Only log first 3 events
-        addDebugMessage(`🔥 ORIENTATION EVENT #${eventCount} - isGyroActive=${isGyroActive}`);
+        addDebugMessage(`🔥 ORIENTATION EVENT #${eventCount} - REF=${currentGyroActive} STATE=${isGyroActive}`);
       }
       
-      if (!isGyroActive) {
+      if (!currentGyroActive) {
         if (eventCount <= 3) { // Only log first 3 failures
-          addDebugMessage(`❌ GYRO NOT ACTIVE #${eventCount} - skipping (isGyroActive=${isGyroActive})`);
+          addDebugMessage(`❌ GYRO NOT ACTIVE #${eventCount} - REF=${currentGyroActive} STATE=${isGyroActive}`);
         }
         return;
       }
@@ -362,7 +365,7 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage, isGyroActive, setI
     } catch (error) {
       addDebugMessage('❌ GYRO ERROR: ' + error.message);
     }
-  }, [isGyroActive, addDebugMessage]); // Add dependencies to ensure fresh state
+  }, [addDebugMessage]); // Removed isGyroActive - using ref instead
 
   // OLD startGyroAnimation function removed - we now use direct Three.js control in handleDeviceOrientation
   const startGyroAnimation = () => {
@@ -925,6 +928,7 @@ function App() {
   const [debugMessages, setDebugMessages] = useState([]);
   const [manualControlActive, setManualControlActive] = useState(false); // Move here!
   const [isGyroActive, setIsGyroActiveRaw] = useState(false); // Move here!
+  const isGyroActiveRef = React.useRef(false); // Add ref to bypass closure issues
   
   // Add debug message function (must be before setIsGyroActive wrapper)
   const addDebugMessage = React.useCallback((message) => {
@@ -933,11 +937,13 @@ function App() {
     console.log(message);
   }, []);
   
-  // Wrapped setter with debugging
+  // Wrapped setter with debugging that updates BOTH state and ref
   const setIsGyroActive = (value) => {
     const stackTrace = new Error().stack?.split('\n')[2] || 'unknown';
     addDebugMessage(`🔄 GYRO STATE CHANGE: ${isGyroActive} → ${value} from ${stackTrace}`);
     setIsGyroActiveRaw(value);
+    isGyroActiveRef.current = value; // Update ref immediately
+    addDebugMessage(`📌 REF UPDATED: isGyroActiveRef.current = ${value}`);
   };
 
   // Gyroscope handlers
