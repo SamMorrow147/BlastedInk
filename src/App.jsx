@@ -162,6 +162,9 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage, isGyroActive, setI
             addDebugMessage('🔄 ✅ GYRO ACTIVATED - isGyroActive = true');
             addDebugMessage('✅ GYRO DIRECT CONTROL READY!');
             
+            // Reset event counter for fresh logging
+            window.orientationEventCount = 0;
+            
             // Add periodic state checker
             const stateChecker = setInterval(() => {
               addDebugMessage(`📊 GYRO STATE CHECK: isGyroActive=${isGyroActive}`);
@@ -193,6 +196,9 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage, isGyroActive, setI
           setIsGyroActive(true);
           addDebugMessage('🔄 ✅ GYRO ACTIVATED - isGyroActive = true');
           addDebugMessage('✅ GYRO DIRECT CONTROL READY!');
+          
+          // Reset event counter for fresh logging
+          window.orientationEventCount = 0;
           return;
         }
       } else {
@@ -301,12 +307,18 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage, isGyroActive, setI
 
   const handleDeviceOrientation = (event) => {
     try {
-      addDebugMessage('🔥 ORIENTATION EVENT TRIGGERED! isGyroActive=' + isGyroActive); // Show current state
+      // STOP THE SPAM - only log first few events for debugging
+      const eventCount = (window.orientationEventCount || 0) + 1;
+      window.orientationEventCount = eventCount;
+      
+      if (eventCount <= 3) { // Only log first 3 events
+        addDebugMessage(`🔥 ORIENTATION EVENT #${eventCount} - isGyroActive=${isGyroActive}`);
+      }
       
       if (!isGyroActive) {
-        addDebugMessage('❌ GYRO NOT ACTIVE - skipping (isGyroActive=' + isGyroActive + ')');
-        // Add stack trace to see what's setting it to false
-        addDebugMessage('📍 Stack trace: ' + (new Error().stack?.split('\n')[1] || 'unknown'));
+        if (eventCount <= 3) { // Only log first 3 failures
+          addDebugMessage(`❌ GYRO NOT ACTIVE #${eventCount} - skipping (isGyroActive=${isGyroActive})`);
+        }
         return;
       }
       
@@ -317,8 +329,10 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage, isGyroActive, setI
       
       gyroRef.current = { beta, gamma };
       
-      // ALWAYS log for debugging (we'll reduce this later)
-      addDebugMessage(`📱 GYRO: β=${beta.toFixed(1)}° γ=${gamma.toFixed(1)}°`);
+      // Reduce gyro data spam - only log occasionally  
+      if (eventCount <= 5 || eventCount % 30 === 0) { // First 5 events, then every 30th
+        addDebugMessage(`📱 GYRO: β=${beta.toFixed(1)}° γ=${gamma.toFixed(1)}°`);
+      }
       
       // Convert to rotation with clamping
       const sensitivity = 1.5; // Moderate sensitivity for smooth control
@@ -337,8 +351,10 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage, isGyroActive, setI
         threeObject.rotation.y = rotY;
         threeObject.rotation.z = 0;
         
-        // ALWAYS log rotation for debugging
-        addDebugMessage(`🎯 GYRO APPLIED: X=${(rotX * 180 / Math.PI).toFixed(1)}° Y=${(rotY * 180 / Math.PI).toFixed(1)}°`);
+        // Reduce applied rotation spam
+        if (eventCount <= 5 || eventCount % 30 === 0) { // First 5 events, then every 30th
+          addDebugMessage(`🎯 GYRO APPLIED: X=${(rotX * 180 / Math.PI).toFixed(1)}° Y=${(rotY * 180 / Math.PI).toFixed(1)}°`);
+        }
       } else {
         addDebugMessage('❌ GYRO: groupRef not available for direct control');
       }
