@@ -150,7 +150,7 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage, isGyroActive, setI
             addDebugMessage('👂 Event listener added');
             setIsGyroActive(true);
             addDebugMessage('🔄 isGyroActive set to true');
-            startGyroAnimation(); // Start animation loop immediately
+            addDebugMessage('✅ GYRO DIRECT CONTROL READY!');
             return;
           } else {
             addDebugMessage('❌ Permission denied: ' + permission);
@@ -164,7 +164,7 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage, isGyroActive, setI
           addDebugMessage('👂 Event listener added');
           setIsGyroActive(true);
           addDebugMessage('🔄 isGyroActive set to true');
-          startGyroAnimation(); // Start animation loop immediately
+          addDebugMessage('✅ GYRO DIRECT CONTROL READY!');
           return;
         }
       } else {
@@ -186,7 +186,7 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage, isGyroActive, setI
             addDebugMessage('👂 Motion event listener added');
             setIsGyroActive(true);
             addDebugMessage('🔄 isGyroActive set to true');
-            startGyroAnimation(); // Start animation loop immediately
+            addDebugMessage('✅ GYRO DIRECT CONTROL READY!');
             return;
           } else {
             addDebugMessage('❌ Motion permission denied: ' + permission);
@@ -200,7 +200,7 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage, isGyroActive, setI
           addDebugMessage('👂 Motion event listener added');
           setIsGyroActive(true);
           addDebugMessage('🔄 isGyroActive set to true');
-          startGyroAnimation(); // Start animation loop immediately
+          addDebugMessage('✅ GYRO DIRECT CONTROL READY!');
           return;
         }
       } else {
