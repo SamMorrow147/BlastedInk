@@ -284,24 +284,24 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage }, ref) => {
       gyroRef.current = { beta, gamma };
       
       // Debug logging
-      console.log(`🔄 GYRO DATA - Beta: ${beta.toFixed(1)}°, Gamma: ${gamma.toFixed(1)}°`);
+      addDebugMessage(`📱 GYRO: β=${beta.toFixed(1)}° γ=${gamma.toFixed(1)}°`);
       
       // Convert to rotation with clamping
-      const sensitivity = 0.2; // Tuned for natural feel
+      const sensitivity = 2.0; // MUCH higher sensitivity for testing
       const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
       
       // Convert to radians and clamp to reasonable range
-      const rotX = clamp(-(beta * sensitivity * Math.PI / 180), -0.8, 0.8);  // Forward/back
-      const rotY = clamp((gamma * sensitivity * Math.PI / 180), -0.8, 0.8);  // Left/right
+      const rotX = clamp(-(beta * sensitivity * Math.PI / 180), -2.0, 2.0);  // Bigger range
+      const rotY = clamp((gamma * sensitivity * Math.PI / 180), -2.0, 2.0);  // Bigger range
       
       // Update target for spring animation
       gyroTargetRef.current = { x: rotX, y: rotY };
       
       // Debug the calculated targets
-      console.log(`🎯 TARGETS - X: ${rotX.toFixed(3)}, Y: ${rotY.toFixed(3)}`);
+      addDebugMessage(`🎯 TARGET: X=${rotX.toFixed(2)} Y=${rotY.toFixed(2)}`);
       
     } catch (error) {
-      console.error('❌ Error handling device orientation:', error);
+      addDebugMessage('❌ Orientation error: ' + error.message);
     }
   };
 
@@ -330,9 +330,8 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage }, ref) => {
           
           // Debug every 60 frames (about once per second)
           if (frameCount % 60 === 0) {
-            console.log(`🔄 GYRO LOOP (frame ${frameCount})`);
-            console.log(`   Target: X=${gyroTargetRef.current.x.toFixed(3)}, Y=${gyroTargetRef.current.y.toFixed(3)}`);
-            console.log(`   Smoothed: X=${gyroSmoothingRef.current.x.toFixed(3)}, Y=${gyroSmoothingRef.current.y.toFixed(3)}`);
+            addDebugMessage(`🔄 LOOP frame ${frameCount}`);
+            addDebugMessage(`📊 Smoothed: X=${gyroSmoothingRef.current.x.toFixed(2)} Y=${gyroSmoothingRef.current.y.toFixed(2)}`);
           }
           
           // Calculate scale based on tilt
@@ -356,21 +355,20 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage }, ref) => {
             config: { tension: 200, friction: 30 }
           });
           
-          // Debug every 60 frames
+          // Debug every 60 frames - final output
           if (frameCount % 60 === 0) {
-            console.log(`   Final rotation: [${finalRotation[0].toFixed(3)}, ${finalRotation[1].toFixed(3)}, ${finalRotation[2].toFixed(3)}]`);
-            console.log(`   Scale: ${currentScale.toFixed(3)}`);
+            addDebugMessage(`🎯 FINAL ROT: [${finalRotation[0].toFixed(2)}, ${finalRotation[1].toFixed(2)}]`);
           }
           
           animationFrameRef.current = requestAnimationFrame(gyroLoop);
         } catch (error) {
-          console.error('❌ Error in gyro animation loop:', error);
+          addDebugMessage('❌ Error in gyro loop: ' + error.message);
         }
       };
       
       animationFrameRef.current = requestAnimationFrame(gyroLoop);
     } catch (error) {
-      console.error('❌ Error starting gyro animation:', error);
+      addDebugMessage('❌ Error starting gyro: ' + error.message);
     }
   };
 
@@ -1063,10 +1061,10 @@ function App() {
         onClick={() => {
           addDebugMessage('🎲 TEST BUTTON CLICKED');
           
-          // Test spring animation (proper way)
+          // Test spring animation (proper way) - BIGGER movements
           const randomRotation = [
-            (Math.random() - 0.5) * Math.PI * 0.5,
-            (Math.random() - 0.5) * Math.PI * 0.5,
+            (Math.random() - 0.5) * Math.PI * 1.5,  // Much bigger rotation
+            (Math.random() - 0.5) * Math.PI * 1.5,  // Much bigger rotation  
             0
           ];
           
