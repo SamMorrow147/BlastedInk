@@ -193,10 +193,13 @@ const InteractiveChain = React.forwardRef((props, ref) => {
       
       gyroRef.current = { beta, gamma };
       
+      // Debug logging
+      console.log(`Gyro data - Beta: ${beta.toFixed(1)}°, Gamma: ${gamma.toFixed(1)}°`);
+      
       // Convert device orientation to chain rotation
-      // Scale down the sensitivity for natural movement
-      const sensitivity = 0.015;
-      const maxTilt = 45; // Maximum degrees to respond to
+      // DRAMATICALLY increased sensitivity for testing
+      const sensitivity = 0.1; // Increased from 0.015 to 0.1 (6.7x more sensitive!)
+      const maxTilt = 60; // Increased from 45 to 60 degrees for more range
       
       // Clamp and convert to radians
       const clampedBeta = Math.max(-maxTilt, Math.min(maxTilt, beta)) * (Math.PI / 180);
@@ -207,6 +210,9 @@ const InteractiveChain = React.forwardRef((props, ref) => {
         x: -clampedBeta * sensitivity, // Forward/back (inverted for natural feel)
         y: clampedGamma * sensitivity  // Left/right
       };
+      
+      // Debug the calculated targets
+      console.log(`Gyro targets - X: ${gyroTargetRef.current.x.toFixed(3)}, Y: ${gyroTargetRef.current.y.toFixed(3)}`);
     } catch (error) {
       console.error('Error handling device orientation:', error);
     }
@@ -224,10 +230,13 @@ const InteractiveChain = React.forwardRef((props, ref) => {
           const dt = (now - lastFrameTime) / 1000;
           lastFrameTime = now;
           
-          // Smooth interpolation toward gyro target
-          const smoothing = 0.05; // Lower = smoother but slower response
-          gyroSmoothingRef.current.x += (gyroTargetRef.current.x - gyroSmoothingRef.current.x) * smoothing;
-          gyroSmoothingRef.current.y += (gyroTargetRef.current.y - gyroSmoothingRef.current.y) * smoothing;
+                     // Smooth interpolation toward gyro target
+           const smoothing = 0.3; // Increased from 0.05 to 0.3 for much faster response!
+           gyroSmoothingRef.current.x += (gyroTargetRef.current.x - gyroSmoothingRef.current.x) * smoothing;
+           gyroSmoothingRef.current.y += (gyroTargetRef.current.y - gyroSmoothingRef.current.y) * smoothing;
+           
+           // Debug the smoothed values
+           console.log(`Smoothed - X: ${gyroSmoothingRef.current.x.toFixed(3)}, Y: ${gyroSmoothingRef.current.y.toFixed(3)}`);
           
           // Calculate scale based on tilt (closer when tilted forward)
           const currentScale = calculateScale(gyroSmoothingRef.current.x, gyroSmoothingRef.current.y);
