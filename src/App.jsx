@@ -146,8 +146,18 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage, isGyroActive, setI
           
           if (permission === 'granted') {
             addDebugMessage('🚀 ORIENTATION PERMISSION GRANTED!');
+            
+            // Add test listener first to verify device is sending events
+            const testListener = (event) => {
+              addDebugMessage(`🧪 TEST EVENT: β=${event.beta?.toFixed(1) || 'null'} γ=${event.gamma?.toFixed(1) || 'null'}`);
+              window.removeEventListener('deviceorientation', testListener); // Remove after first event
+            };
+            window.addEventListener('deviceorientation', testListener);
+            addDebugMessage('🧪 Test listener added - tilt your phone now!');
+            
+            // Add main listener
             window.addEventListener('deviceorientation', handleDeviceOrientation);
-            addDebugMessage('👂 Event listener added');
+            addDebugMessage('👂 Main event listener added');
             setIsGyroActive(true);
             addDebugMessage('🔄 isGyroActive set to true');
             addDebugMessage('✅ GYRO DIRECT CONTROL READY!');
@@ -160,8 +170,18 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage, isGyroActive, setI
         } else {
           // Android or older iOS
           addDebugMessage('🤖 Android/older iOS - no permission needed');
+          
+          // Add test listener first to verify device is sending events
+          const testListener = (event) => {
+            addDebugMessage(`🧪 TEST EVENT: β=${event.beta?.toFixed(1) || 'null'} γ=${event.gamma?.toFixed(1) || 'null'}`);
+            window.removeEventListener('deviceorientation', testListener); // Remove after first event
+          };
+          window.addEventListener('deviceorientation', testListener);
+          addDebugMessage('🧪 Test listener added - tilt your phone now!');
+          
+          // Add main listener
           window.addEventListener('deviceorientation', handleDeviceOrientation);
-          addDebugMessage('👂 Event listener added');
+          addDebugMessage('👂 Main event listener added');
           setIsGyroActive(true);
           addDebugMessage('🔄 isGyroActive set to true');
           addDebugMessage('✅ GYRO DIRECT CONTROL READY!');
@@ -273,7 +293,12 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage, isGyroActive, setI
 
   const handleDeviceOrientation = (event) => {
     try {
-      if (!isGyroActive) return;
+      addDebugMessage('🔥 ORIENTATION EVENT TRIGGERED!'); // Always log to see if function is called
+      
+      if (!isGyroActive) {
+        addDebugMessage('❌ GYRO NOT ACTIVE - skipping');
+        return;
+      }
       
       // Beta: front-back tilt (-180 to 180, negative forward)
       // Gamma: left-right tilt (-90 to 90, negative left)
@@ -282,10 +307,8 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage, isGyroActive, setI
       
       gyroRef.current = { beta, gamma };
       
-      // Debug logging (reduced frequency to avoid spam)
-      if (Date.now() % 10 < 2) { // Only log ~20% of the time
-        addDebugMessage(`📱 GYRO: β=${beta.toFixed(1)}° γ=${gamma.toFixed(1)}°`);
-      }
+      // ALWAYS log for debugging (we'll reduce this later)
+      addDebugMessage(`📱 GYRO: β=${beta.toFixed(1)}° γ=${gamma.toFixed(1)}°`);
       
       // Convert to rotation with clamping
       const sensitivity = 1.5; // Moderate sensitivity for smooth control
@@ -304,10 +327,8 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage, isGyroActive, setI
         threeObject.rotation.y = rotY;
         threeObject.rotation.z = 0;
         
-        // Debug the applied rotation (reduced frequency)
-        if (Date.now() % 20 < 2) { // Only log ~10% of the time
-          addDebugMessage(`🎯 GYRO APPLIED: X=${(rotX * 180 / Math.PI).toFixed(1)}° Y=${(rotY * 180 / Math.PI).toFixed(1)}°`);
-        }
+        // ALWAYS log rotation for debugging
+        addDebugMessage(`🎯 GYRO APPLIED: X=${(rotX * 180 / Math.PI).toFixed(1)}° Y=${(rotY * 180 / Math.PI).toFixed(1)}°`);
       } else {
         addDebugMessage('❌ GYRO: groupRef not available for direct control');
       }
