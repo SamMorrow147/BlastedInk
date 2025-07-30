@@ -30,9 +30,10 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage }, ref) => {
   const [isSwinging, setIsSwinging] = useState(false)
   const [isGyroActive, setIsGyroActive] = useState(false)
   const [showGyroButton, setShowGyroButton] = useState(false)
-  const [gyroError, setGyroError] = useState(null)
-
+    const [gyroError, setGyroError] = useState(null)
+  const [manualControlActive, setManualControlActive] = useState(false) // Flag to prevent auto-swing restart
   
+
   // Physics constants
   const CHAIN_LENGTH = 5.0 // Virtual chain length for physics calculations
   const GRAVITY = 12.0 // Increased gravity for more natural falling
@@ -405,9 +406,12 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage }, ref) => {
         y: -0.2  // Small forward velocity (negative for forward motion)
       };
       
-      // Start the swing animation immediately (only if gyro is not active)
-      if (!isGyroActive) {
+      // Start the swing animation immediately (only if gyro is not active AND no manual control)
+      if (!isGyroActive && !manualControlActive) {
+        addDebugMessage('🎬 STARTING INITIAL SWING ANIMATION');
         startSwingAnimation(initialRotationX, initialRotationY, initialVelocity);
+      } else if (manualControlActive) {
+        addDebugMessage('⏸️ SKIPPING INITIAL SWING - MANUAL CONTROL ACTIVE');
       }
       
       return () => {
@@ -419,7 +423,7 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage }, ref) => {
     } catch (error) {
       console.error('Error in initial swing effect:', error);
     }
-  }, [isGyroActive]); // Add isGyroActive as dependency
+  }, [isGyroActive, manualControlActive]); // Add both dependencies
 
   // Calculate scale based on rotation (perspective effect)
   const calculateScale = (rotX, rotY) => {
@@ -1069,25 +1073,39 @@ function App() {
         onClick={() => {
           addDebugMessage('🎲 TEST BUTTON CLICKED');
           
-          // STOP any running swing animation first
+          // STOP any running swing animation first AND prevent it from restarting
           if (chainRef.current && chainRef.current.stopSwingAnimation) {
             chainRef.current.stopSwingAnimation();
           }
+                      setManualControlActive(true); // Prevent useEffect from restarting swing
+            addDebugMessage('🔒 MANUAL CONTROL ACTIVATED');
           
-          // Test spring animation (proper way) - BIGGER movements
+          // Test spring animation (proper way) - EXTREME movements
           const randomRotation = [
-            (Math.random() - 0.5) * Math.PI * 1.5,  // Much bigger rotation
-            (Math.random() - 0.5) * Math.PI * 1.5,  // Much bigger rotation  
+            (Math.random() - 0.5) * Math.PI * 3.0,  // EXTREME rotation (540 degrees!)
+            (Math.random() - 0.5) * Math.PI * 3.0,  // EXTREME rotation (540 degrees!)
             0
           ];
           
-          // Test via spring API (correct method) with less friction to hold position
+          // Test via spring API (correct method) with IMMEDIATE movement
           if (chainRef.current && chainRef.current.api) {
             chainRef.current.api.start({
               rotation: randomRotation,
-              config: { tension: 120, friction: 60 }  // Lower tension, higher friction = holds position better
+              config: { 
+                tension: 300,   // Higher tension = faster movement
+                friction: 25,   // Lower friction = less damping  
+                mass: 1
+              }
             });
             addDebugMessage('🎲 SPRING ROTATION: ' + JSON.stringify(randomRotation));
+            
+            // Add a delay to check what the actual rotation becomes
+            setTimeout(() => {
+              if (chainRef.current && chainRef.current.api) {
+                const currentRotation = chainRef.current.api.current;
+                addDebugMessage('📍 ACTUAL ROTATION: ' + JSON.stringify(currentRotation?.rotation));
+              }
+            }, 500);  // Check after spring settles
           } else {
             addDebugMessage('❌ chainRef.current or api not available');
           }
