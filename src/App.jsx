@@ -352,22 +352,22 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage, isGyroActive, setI
       const rangeReduction = uprightAmount * 0.3; // Gradually reduce range
       rotX = (rotX * (1 - rangeReduction)) + forwardBias;
       
-      // When very close to upright (within 15°), always face forward to eliminate glitching
-      let rotY;
-      const veryUprightThreshold = 15; // Dead zone for perfect stability
-      if (Math.abs(adjustedBeta) < veryUprightThreshold) {
-        rotY = 0; // Always face forward when phone is straight up/down
-      } else {
-        // Smooth transition for left/right sensitivity outside the dead zone
-        const deadzone = uprightAmount * 5; // Gradual deadzone application
-        const adjustedGamma = Math.abs(gamma) > deadzone ? gamma - Math.sign(gamma) * deadzone : 0;
-        
-        // Blend between full sensitivity (1.5) and reduced sensitivity (0.8)
-        const sensitivity = 1.5 - (uprightAmount * 0.7); // 1.5 → 0.8
-        const maxRange = 1.2 - (uprightAmount * 0.6); // 1.2 → 0.6
-        
-        rotY = clamp((adjustedGamma * sensitivity * Math.PI / 180), -maxRange, maxRange);
-      }
+      // Smooth transition into upright dead zone to prevent glitching
+      const veryUprightThreshold = 15; // Dead zone boundary
+      const deadZoneAmount = Math.max(0, Math.min(1, (veryUprightThreshold - Math.abs(adjustedBeta)) / veryUprightThreshold));
+      
+      // Calculate the target rotY from gyroscope
+      const deadzone = uprightAmount * 5; // Gradual deadzone application
+      const adjustedGamma = Math.abs(gamma) > deadzone ? gamma - Math.sign(gamma) * deadzone : 0;
+      
+      // Blend between full sensitivity (1.5) and reduced sensitivity (0.8)
+      const sensitivity = 1.5 - (uprightAmount * 0.7); // 1.5 → 0.8
+      const maxRange = 1.2 - (uprightAmount * 0.6); // 1.2 → 0.6
+      
+      const targetRotY = clamp((adjustedGamma * sensitivity * Math.PI / 180), -maxRange, maxRange);
+      
+      // Smoothly blend from gyroscope value to 0 (forward) as we enter the dead zone
+      const rotY = targetRotY * (1 - deadZoneAmount); // Gradually reduce to 0 as we get more upright
       
       // DIRECT THREE.JS CONTROL (same technique as test button)
       if (groupRef.current) {
