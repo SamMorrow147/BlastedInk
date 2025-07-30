@@ -133,25 +133,7 @@ const InteractiveChain = React.forwardRef((props, ref) => {
 
   const enableGyroscope = async () => {
     try {
-      // Try DeviceMotion first (might have better support)
-      if (typeof window !== 'undefined' && window.DeviceMotionEvent) {
-        if (typeof DeviceMotionEvent.requestPermission === 'function') {
-          const permission = await DeviceMotionEvent.requestPermission();
-          if (permission === 'granted') {
-            console.log('🚀 MOTION PERMISSION GRANTED!');
-            window.addEventListener('devicemotion', handleDeviceMotion);
-            setIsGyroActive(true);
-            return;
-          }
-        } else {
-          // Android or older iOS
-          window.addEventListener('devicemotion', handleDeviceMotion);
-          setIsGyroActive(true);
-          return;
-        }
-      }
-
-      // Fallback to DeviceOrientation
+      // Try DeviceOrientation first (better for tilt-based control)
       if (typeof window !== 'undefined' && window.DeviceOrientationEvent) {
         if (typeof DeviceOrientationEvent.requestPermission === 'function') {
           const permission = await DeviceOrientationEvent.requestPermission();
@@ -159,17 +141,39 @@ const InteractiveChain = React.forwardRef((props, ref) => {
             console.log('🚀 ORIENTATION PERMISSION GRANTED!');
             window.addEventListener('deviceorientation', handleDeviceOrientation);
             setIsGyroActive(true);
+            startGyroAnimation(); // Start animation loop immediately
             return;
           }
         } else {
           // Android or older iOS
           window.addEventListener('deviceorientation', handleDeviceOrientation);
           setIsGyroActive(true);
+          startGyroAnimation(); // Start animation loop immediately
           return;
         }
       }
 
-      setGyroError('No motion or orientation support found');
+      // Fallback to DeviceMotion if orientation not available
+      if (typeof window !== 'undefined' && window.DeviceMotionEvent) {
+        if (typeof DeviceMotionEvent.requestPermission === 'function') {
+          const permission = await DeviceMotionEvent.requestPermission();
+          if (permission === 'granted') {
+            console.log('🚀 MOTION PERMISSION GRANTED!');
+            window.addEventListener('devicemotion', handleDeviceMotion);
+            setIsGyroActive(true);
+            startGyroAnimation(); // Start animation loop immediately
+            return;
+          }
+        } else {
+          // Android or older iOS
+          window.addEventListener('devicemotion', handleDeviceMotion);
+          setIsGyroActive(true);
+          startGyroAnimation(); // Start animation loop immediately
+          return;
+        }
+      }
+
+      setGyroError('No orientation or motion support found');
     } catch (error) {
       console.error('❌ Error enabling sensors:', error);
       setGyroError('Failed to enable: ' + error.message);
@@ -186,17 +190,17 @@ const InteractiveChain = React.forwardRef((props, ref) => {
 
       console.log(`📱 MOTION - X: ${x.toFixed(2)}, Y: ${y.toFixed(2)}, Z: ${z.toFixed(2)}`);
 
-      // Convert acceleration to rotation (exaggerated for testing)
-      const sensitivity = 0.5; // Very high sensitivity
-      const rotX = -(y * sensitivity); // Forward/back tilt
-      const rotY = x * sensitivity;    // Left/right tilt
+      // Convert acceleration to rotation with clamping
+      const sensitivity = 0.3;
+      const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+      
+      // Clamp rotations to reasonable range
+      const rotX = clamp(-(y * sensitivity), -0.8, 0.8); // Forward/back tilt
+      const rotY = clamp(x * sensitivity, -0.8, 0.8);    // Left/right tilt
 
-      // Direct application
-      if (groupRef.current) {
-        groupRef.current.rotation.x = rotX;
-        groupRef.current.rotation.y = rotY;
-        console.log(`⚡ MOTION ROTATION - X: ${rotX.toFixed(2)}, Y: ${rotY.toFixed(2)}`);
-      }
+      // Update target for spring animation
+      gyroTargetRef.current = { x: rotX, y: rotY };
+      console.log(`🎯 MOTION TARGETS - X: ${rotX.toFixed(2)}, Y: ${rotY.toFixed(2)}`);
     } catch (error) {
       console.error('❌ Error handling motion:', error);
     }
@@ -243,28 +247,22 @@ const InteractiveChain = React.forwardRef((props, ref) => {
       
       gyroRef.current = { beta, gamma };
       
-      // SUPER OBVIOUS debug logging
+      // Debug logging
       console.log(`🔄 GYRO DATA - Beta: ${beta.toFixed(1)}°, Gamma: ${gamma.toFixed(1)}°`);
       
-      // EXTREME sensitivity for testing - should be VERY obvious
-      const sensitivity = 0.3; // Even more sensitive!
-      const maxTilt = 90; // Full range
+      // Convert to rotation with clamping
+      const sensitivity = 0.2; // Tuned for natural feel
+      const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
       
-      // Direct mapping - no complex math
-      const rotX = -(beta * sensitivity * Math.PI / 180); // Forward/back
-      const rotY = gamma * sensitivity * Math.PI / 180;   // Left/right
+      // Convert to radians and clamp to reasonable range
+      const rotX = clamp(-(beta * sensitivity * Math.PI / 180), -0.8, 0.8);  // Forward/back
+      const rotY = clamp((gamma * sensitivity * Math.PI / 180), -0.8, 0.8);  // Left/right
       
+      // Update target for spring animation
       gyroTargetRef.current = { x: rotX, y: rotY };
       
-      // OBVIOUS debug output
+      // Debug the calculated targets
       console.log(`🎯 TARGETS - X: ${rotX.toFixed(3)}, Y: ${rotY.toFixed(3)}`);
-      
-      // IMMEDIATE direct application for testing (bypass smoothing)
-      if (groupRef.current) {
-        groupRef.current.rotation.x = rotX;
-        groupRef.current.rotation.y = rotY;
-        console.log(`⚡ DIRECT ROTATION APPLIED!`);
-      }
       
     } catch (error) {
       console.error('❌ Error handling device orientation:', error);
