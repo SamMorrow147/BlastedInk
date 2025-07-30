@@ -1118,18 +1118,30 @@ function App() {
           zIndex: 1
         }}
       >
-        {/* Lighting setup */}
-        <ambientLight intensity={1.6} />
-        <directionalLight 
+        {/* Lighting setup - ambient and directional lights disabled */}
+        {/* <ambientLight intensity={1.6} /> */}
+        {/* <directionalLight 
           position={[20, 20, 10]}  // Positioned far right and high for dramatic lighting
           intensity={1.0}  // Full intensity directional lighting
           castShadow
           shadow-mapSize-width={2048}
           shadow-mapSize-height={2048}
+        /> */}
+        
+        {/* Dramatic upward point light from below */}
+        <pointLight
+          position={[0, -4, 1]}  // Below and slightly forward of the chain
+          intensity={4.0}  // Strong intensity for dramatic uplighting
+          distance={15}  // Light reach distance
+          decay={2}  // Natural light falloff
+          castShadow
+          shadow-mapSize-width={2048}
+          shadow-mapSize-height={2048}
+          color="#ffdd88"  // Warm golden tint to complement sunset
         />
 
         {/* Environment for better reflections */}
-        <Environment preset="city" />
+        <Environment preset="sunset" />
 
         {/* Orbit Controls - disabled to prevent conflicts */}
         <OrbitControls 
@@ -1161,24 +1173,10 @@ function App() {
         onDisable={handleDisableGyro}
       />
 
-      {/* Debug Messages Panel - Mostly Transparent */}
+      {/* Debug Messages Panel - Hidden */}
       {debugMessages.length > 0 && (
         <div style={{
-          position: 'absolute',
-          top: '20px',
-          left: '20px',
-          maxWidth: '50vw', // Max 50% of viewport width
-          maxHeight: '600px',
-          backgroundColor: 'rgba(0, 0, 0, 0.1)', // Very transparent
-          color: 'rgba(255, 255, 255, 0.3)', // Very faint text
-          padding: '12px',
-          borderRadius: '8px',
-          fontSize: '11px',
-          fontFamily: 'monospace',
-          zIndex: 1000,
-          lineHeight: '1.3',
-          overflowY: 'auto',
-          pointerEvents: 'none' // Make it non-interactive
+          display: 'none' // Completely hidden
         }}>
           <div style={{ fontWeight: 'bold', marginBottom: '8px', position: 'sticky', top: 0, backgroundColor: 'rgba(0, 0, 0, 0.1)', color: 'rgba(255, 255, 255, 0.4)' }}>🔍 Debug Log:</div>
           {debugMessages.map((msg, i) => (
