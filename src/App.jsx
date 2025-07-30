@@ -269,53 +269,72 @@ const InteractiveChain = React.forwardRef((props, ref) => {
     }
   };
 
-  const startGyroAnimation = () => {
+    const startGyroAnimation = () => {
     try {
+      console.log('🚀 STARTING GYRO ANIMATION LOOP');
       let lastFrameTime = Date.now();
+      let frameCount = 0;
       
       const gyroLoop = () => {
         try {
-          if (!isGyroActive) return;
+          if (!isGyroActive) {
+            console.log('⏹️ GYRO ANIMATION STOPPED - isGyroActive false');
+            return;
+          }
           
+          frameCount++;
           const now = Date.now();
           const dt = (now - lastFrameTime) / 1000;
           lastFrameTime = now;
           
-                     // Smooth interpolation toward gyro target
-           const smoothing = 0.3; // Increased from 0.05 to 0.3 for much faster response!
-           gyroSmoothingRef.current.x += (gyroTargetRef.current.x - gyroSmoothingRef.current.x) * smoothing;
-           gyroSmoothingRef.current.y += (gyroTargetRef.current.y - gyroSmoothingRef.current.y) * smoothing;
-           
-           // Debug the smoothed values
-           console.log(`Smoothed - X: ${gyroSmoothingRef.current.x.toFixed(3)}, Y: ${gyroSmoothingRef.current.y.toFixed(3)}`);
+          // Smooth interpolation toward gyro target
+          const smoothing = 0.3;
+          gyroSmoothingRef.current.x += (gyroTargetRef.current.x - gyroSmoothingRef.current.x) * smoothing;
+          gyroSmoothingRef.current.y += (gyroTargetRef.current.y - gyroSmoothingRef.current.y) * smoothing;
           
-          // Calculate scale based on tilt (closer when tilted forward)
+          // Debug every 60 frames (about once per second)
+          if (frameCount % 60 === 0) {
+            console.log(`🔄 GYRO LOOP (frame ${frameCount})`);
+            console.log(`   Target: X=${gyroTargetRef.current.x.toFixed(3)}, Y=${gyroTargetRef.current.y.toFixed(3)}`);
+            console.log(`   Smoothed: X=${gyroSmoothingRef.current.x.toFixed(3)}, Y=${gyroSmoothingRef.current.y.toFixed(3)}`);
+          }
+          
+          // Calculate scale based on tilt
           const currentScale = calculateScale(gyroSmoothingRef.current.x, gyroSmoothingRef.current.y);
           
-          // Apply rotation with slight swing physics for natural feel
-          const swingFactor = 0.1; // Small oscillation around gyro position
+          // Apply rotation with slight swing physics
+          const swingFactor = 0.1;
           const swingX = Math.sin(now * 0.002) * swingFactor * Math.abs(gyroSmoothingRef.current.x);
           const swingY = Math.cos(now * 0.0015) * swingFactor * Math.abs(gyroSmoothingRef.current.y);
           
+          const finalRotation = [
+            gyroSmoothingRef.current.x + swingX,
+            gyroSmoothingRef.current.y + swingY,
+            0
+          ];
+          
+          // Apply via spring
           api.start({
-            rotation: [
-              gyroSmoothingRef.current.x + swingX,
-              gyroSmoothingRef.current.y + swingY,
-              0
-            ],
+            rotation: finalRotation,
             scale: [currentScale, currentScale, currentScale],
             config: { tension: 200, friction: 30 }
           });
           
+          // Debug every 60 frames
+          if (frameCount % 60 === 0) {
+            console.log(`   Final rotation: [${finalRotation[0].toFixed(3)}, ${finalRotation[1].toFixed(3)}, ${finalRotation[2].toFixed(3)}]`);
+            console.log(`   Scale: ${currentScale.toFixed(3)}`);
+          }
+          
           animationFrameRef.current = requestAnimationFrame(gyroLoop);
         } catch (error) {
-          console.error('Error in gyro animation loop:', error);
+          console.error('❌ Error in gyro animation loop:', error);
         }
       };
       
       animationFrameRef.current = requestAnimationFrame(gyroLoop);
     } catch (error) {
-      console.error('Error starting gyro animation:', error);
+      console.error('❌ Error starting gyro animation:', error);
     }
   };
 
@@ -683,7 +702,8 @@ const InteractiveChain = React.forwardRef((props, ref) => {
   // Expose methods via ref
   React.useImperativeHandle(ref, () => ({
     requestGyroPermission,
-    disableGyroscope
+    disableGyroscope,
+    api // Expose the spring API for testing
   }));
 
   return (
@@ -973,12 +993,24 @@ function App() {
       {/* Test Movement Button */}
       <button
         onClick={() => {
-          // Test if we can move the chain at all
-          if (chainRef.current) {
-            const randomRotation = Math.random() * Math.PI * 0.5;
-            chainRef.current.rotation.x = randomRotation;
-            chainRef.current.rotation.y = randomRotation;
-            console.log('🎲 TEST ROTATION:', randomRotation);
+          console.log('🎲 TEST BUTTON CLICKED');
+          
+          // Test spring animation (proper way)
+          const randomRotation = [
+            (Math.random() - 0.5) * Math.PI * 0.5,
+            (Math.random() - 0.5) * Math.PI * 0.5,
+            0
+          ];
+          
+          // Test via spring API (correct method)
+          if (chainRef.current && chainRef.current.api) {
+            chainRef.current.api.start({
+              rotation: randomRotation,
+              config: { tension: 200, friction: 30 }
+            });
+            console.log('🎲 SPRING ROTATION:', randomRotation);
+          } else {
+            console.log('❌ chainRef.current or api not available');
           }
         }}
         style={{
