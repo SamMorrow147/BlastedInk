@@ -31,6 +31,15 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage, isGyroActive, setI
   const [showGyroButton, setShowGyroButton] = useState(false)
   const [gyroError, setGyroError] = useState(null)
   
+  // Add ref here where handleDeviceOrientation can access it
+  const isGyroActiveRef = useRef(isGyroActive);
+  
+  // Sync ref with prop changes
+  React.useEffect(() => {
+    isGyroActiveRef.current = isGyroActive;
+    addDebugMessage(`📌 REF SYNCED: isGyroActiveRef.current = ${isGyroActive}`);
+  }, [isGyroActive, addDebugMessage]);
+  
 
   // Physics constants
   const CHAIN_LENGTH = 5.0 // Virtual chain length for physics calculations
@@ -165,9 +174,9 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage, isGyroActive, setI
             // Reset event counter for fresh logging
             window.orientationEventCount = 0;
             
-            // Add periodic state checker
+            // Add periodic state checker (ref now in InteractiveChain)
             const stateChecker = setInterval(() => {
-              addDebugMessage(`📊 GYRO STATE CHECK: REF=${isGyroActiveRef.current} STATE=${isGyroActive}`);
+              addDebugMessage(`📊 GYRO STATE CHECK: STATE=${isGyroActive}`);
             }, 2000); // Check every 2 seconds
             
             // Clean up checker after 10 seconds
@@ -928,7 +937,6 @@ function App() {
   const [debugMessages, setDebugMessages] = useState([]);
   const [manualControlActive, setManualControlActive] = useState(false); // Move here!
   const [isGyroActive, setIsGyroActiveRaw] = useState(false); // Move here!
-  const isGyroActiveRef = React.useRef(false); // Add ref to bypass closure issues
   
   // Add debug message function (must be before setIsGyroActive wrapper)
   const addDebugMessage = React.useCallback((message) => {
@@ -937,13 +945,11 @@ function App() {
     console.log(message);
   }, []);
   
-  // Wrapped setter with debugging that updates BOTH state and ref
+  // Wrapped setter with debugging (ref is now in InteractiveChain component)
   const setIsGyroActive = (value) => {
     const stackTrace = new Error().stack?.split('\n')[2] || 'unknown';
     addDebugMessage(`🔄 GYRO STATE CHANGE: ${isGyroActive} → ${value} from ${stackTrace}`);
     setIsGyroActiveRaw(value);
-    isGyroActiveRef.current = value; // Update ref immediately
-    addDebugMessage(`📌 REF UPDATED: isGyroActiveRef.current = ${value}`);
   };
 
   // Gyroscope handlers
