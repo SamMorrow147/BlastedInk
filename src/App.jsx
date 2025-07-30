@@ -159,7 +159,7 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage, isGyroActive, setI
             window.addEventListener('deviceorientation', handleDeviceOrientation);
             addDebugMessage('👂 Main event listener added');
             setIsGyroActive(true);
-            addDebugMessage('🔄 isGyroActive set to true');
+            addDebugMessage('🔄 ✅ GYRO ACTIVATED - isGyroActive = true');
             addDebugMessage('✅ GYRO DIRECT CONTROL READY!');
             return;
           } else {
@@ -183,7 +183,7 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage, isGyroActive, setI
           window.addEventListener('deviceorientation', handleDeviceOrientation);
           addDebugMessage('👂 Main event listener added');
           setIsGyroActive(true);
-          addDebugMessage('🔄 isGyroActive set to true');
+          addDebugMessage('🔄 ✅ GYRO ACTIVATED - isGyroActive = true');
           addDebugMessage('✅ GYRO DIRECT CONTROL READY!');
           return;
         }
@@ -338,91 +338,10 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage, isGyroActive, setI
     }
   };
 
-    const startGyroAnimation = () => {
-    try {
-      addDebugMessage('🚀 STARTING GYRO ANIMATION LOOP');
-      let lastFrameTime = Date.now();
-      let frameCount = 0;
-      
-              const gyroLoop = () => {
-          try {
-            if (!isGyroActive) {
-              addDebugMessage('⏹️ GYRO LOOP STOPPING - isGyroActive false');
-              if (animationFrameRef.current) {
-                cancelAnimationFrame(animationFrameRef.current);
-                animationFrameRef.current = null;
-              }
-              return;
-            }
-            
-            // Debug: check if this is interfering with manual control
-            if (manualControlActive) {
-              addDebugMessage('🚨 GYRO LOOP RUNNING DURING MANUAL CONTROL - STOPPING!');
-              setIsGyroActive(false);
-              if (animationFrameRef.current) {
-                cancelAnimationFrame(animationFrameRef.current);
-                animationFrameRef.current = null;
-              }
-              return;
-            }
-          
-          frameCount++;
-          const now = Date.now();
-          const dt = (now - lastFrameTime) / 1000;
-          lastFrameTime = now;
-          
-          // Smooth interpolation toward gyro target
-          const smoothing = 0.3;
-          gyroSmoothingRef.current.x += (gyroTargetRef.current.x - gyroSmoothingRef.current.x) * smoothing;
-          gyroSmoothingRef.current.y += (gyroTargetRef.current.y - gyroSmoothingRef.current.y) * smoothing;
-          
-          // Debug every 60 frames (about once per second)
-          if (frameCount % 60 === 0) {
-            addDebugMessage(`🔄 LOOP frame ${frameCount}`);
-            addDebugMessage(`📊 Smoothed: X=${gyroSmoothingRef.current.x.toFixed(2)} Y=${gyroSmoothingRef.current.y.toFixed(2)}`);
-          }
-          
-          // Calculate scale based on tilt
-          const currentScale = calculateScale(gyroSmoothingRef.current.x, gyroSmoothingRef.current.y);
-          
-          // Apply rotation with slight swing physics
-          const swingFactor = 0.1;
-          const swingX = Math.sin(now * 0.002) * swingFactor * Math.abs(gyroSmoothingRef.current.x);
-          const swingY = Math.cos(now * 0.0015) * swingFactor * Math.abs(gyroSmoothingRef.current.y);
-          
-          const finalRotation = [
-            gyroSmoothingRef.current.x + swingX,
-            gyroSmoothingRef.current.y + swingY,
-            0
-          ];
-          
-          // Apply via spring
-          api.start({
-            rotation: finalRotation,
-            scale: [currentScale, currentScale, currentScale],
-            config: { tension: 200, friction: 30 }
-          });
-          
-          // Debug: This could be overriding the test button!
-          if (manualControlActive && frameCount % 60 === 0) {
-            addDebugMessage('🚨 GYRO OVERRIDING MANUAL CONTROL: ' + JSON.stringify(finalRotation));
-          }
-          
-          // Debug every 60 frames - final output
-          if (frameCount % 60 === 0) {
-            addDebugMessage(`🎯 FINAL ROT: [${finalRotation[0].toFixed(2)}, ${finalRotation[1].toFixed(2)}]`);
-          }
-          
-          animationFrameRef.current = requestAnimationFrame(gyroLoop);
-        } catch (error) {
-          addDebugMessage('❌ Error in gyro loop: ' + error.message);
-        }
-      };
-      
-      animationFrameRef.current = requestAnimationFrame(gyroLoop);
-    } catch (error) {
-      addDebugMessage('❌ Error starting gyro: ' + error.message);
-    }
+  // OLD startGyroAnimation function removed - we now use direct Three.js control in handleDeviceOrientation
+  const startGyroAnimation = () => {
+    addDebugMessage('⚠️ OLD GYRO ANIMATION CALLED - now using direct control instead');
+    return; // Do nothing - direct control handles everything
   };
 
   // Check if device orientation is supported on mount
@@ -1226,10 +1145,9 @@ function App() {
                       // COMPREHENSIVE ANIMATION STOPPING
             addDebugMessage('🛑 STOPPING ALL ANIMATIONS...');
             
-            // Stop gyro animation if running 
+            // NOTE: Keep gyroscope active - don't disable it for test button
             if (isGyroActive) {
-              addDebugMessage('⚠️ GYRO WAS ACTIVE - DISABLING');
-              setIsGyroActive(false);
+              addDebugMessage('ℹ️ GYRO STILL ACTIVE - keeping enabled');
             }
             
             // Stop ALL spring animations first
