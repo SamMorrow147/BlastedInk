@@ -358,14 +358,14 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage, isGyroActive, setI
       // Convert to rotation with full range mapping
       const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
       
-      // Map reduced phone tilt range to full chain range for more extreme tilting:
+      // Map extended phone tilt range to full chain range - requires much more extreme tilting:
       // Phone upright (beta ~90°) → chain straight (rotX = 0)
-      // Phone tipped forward toward upside down (beta ~30°) → chain max back (rotX = +1.2)  
-      // Phone tilted far back (beta ~150°) → chain max forward (rotX = -1.2)
+      // Phone completely upside down (beta ~0°) → chain max back (rotX = +1.2)  
+      // Phone tilted far back (beta ~180°) → chain max forward (rotX = -1.2)
       const adjustedBeta = beta - 90; // Convert to -90° to +90° range centered on upright
       
-      // Use only 60° range instead of 90° - requires more extreme tilting to reach max positions
-      let rotX = clamp(-(adjustedBeta / 60) * 1.2, -1.2, 1.2); // More extreme tilting required
+      // Use 120° range instead of 90° - requires much more extreme tilting to reach max positions
+      let rotX = clamp(-(adjustedBeta / 120) * 1.2, -1.2, 1.2); // Must tilt much further for max
       
       // Smooth transition between upright and tilted modes
       const uprightThreshold = 30; // Transition zone: 0-30° from vertical
