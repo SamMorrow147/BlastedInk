@@ -340,8 +340,8 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage, isGyroActive, setI
       const rotY = clamp((gamma * sensitivity * Math.PI / 180), -1.2, 1.2);  // ~±69° max
       
       // DIRECT THREE.JS CONTROL (same technique as test button)
-      if (chainRef.current && chainRef.current.groupRef && chainRef.current.groupRef.current) {
-        const threeObject = chainRef.current.groupRef.current;
+      if (groupRef.current) {
+        const threeObject = groupRef.current;
         
         // Apply rotation directly - INSTANT response like test button!
         threeObject.rotation.x = rotX;
