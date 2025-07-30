@@ -737,7 +737,15 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage }, ref) => {
   React.useImperativeHandle(ref, () => ({
     requestGyroPermission,
     disableGyroscope,
-    api // Expose the spring API for testing
+    api, // Expose the spring API for testing
+    stopSwingAnimation: () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+      setIsSwinging(false);
+      addDebugMessage('⏹️ SWING ANIMATION STOPPED');
+    }
   }));
 
   return (
@@ -1061,6 +1069,11 @@ function App() {
         onClick={() => {
           addDebugMessage('🎲 TEST BUTTON CLICKED');
           
+          // STOP any running swing animation first
+          if (chainRef.current && chainRef.current.stopSwingAnimation) {
+            chainRef.current.stopSwingAnimation();
+          }
+          
           // Test spring animation (proper way) - BIGGER movements
           const randomRotation = [
             (Math.random() - 0.5) * Math.PI * 1.5,  // Much bigger rotation
@@ -1068,11 +1081,11 @@ function App() {
             0
           ];
           
-          // Test via spring API (correct method)
+          // Test via spring API (correct method) with less friction to hold position
           if (chainRef.current && chainRef.current.api) {
             chainRef.current.api.start({
               rotation: randomRotation,
-              config: { tension: 200, friction: 30 }
+              config: { tension: 120, friction: 60 }  // Lower tension, higher friction = holds position better
             });
             addDebugMessage('🎲 SPRING ROTATION: ' + JSON.stringify(randomRotation));
           } else {
