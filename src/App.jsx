@@ -138,16 +138,22 @@ const InteractiveChain = React.forwardRef((props, ref) => {
         return;
       }
 
-      console.log('Enabling gyroscope...');
+      console.log('🚀 ENABLING GYROSCOPE...');
       setIsGyroActive(true);
       setGyroError(null);
       
       window.addEventListener('deviceorientation', handleDeviceOrientation, { passive: true });
+      console.log('✅ EVENT LISTENER ADDED!');
+      
+      // Test if we get any events at all
+      setTimeout(() => {
+        console.log('⏰ 3 seconds passed - if no gyro data above, device might not support it');
+      }, 3000);
       
       // Start gyro animation loop
       startGyroAnimation();
     } catch (error) {
-      console.error('Error enabling gyroscope:', error);
+      console.error('❌ Error enabling gyroscope:', error);
       setGyroError('Failed to enable: ' + error.message);
     }
   };
@@ -193,28 +199,31 @@ const InteractiveChain = React.forwardRef((props, ref) => {
       
       gyroRef.current = { beta, gamma };
       
-      // Debug logging
-      console.log(`Gyro data - Beta: ${beta.toFixed(1)}°, Gamma: ${gamma.toFixed(1)}°`);
+      // SUPER OBVIOUS debug logging
+      console.log(`🔄 GYRO DATA - Beta: ${beta.toFixed(1)}°, Gamma: ${gamma.toFixed(1)}°`);
       
-      // Convert device orientation to chain rotation
-      // DRAMATICALLY increased sensitivity for testing
-      const sensitivity = 0.1; // Increased from 0.015 to 0.1 (6.7x more sensitive!)
-      const maxTilt = 60; // Increased from 45 to 60 degrees for more range
+      // EXTREME sensitivity for testing - should be VERY obvious
+      const sensitivity = 0.3; // Even more sensitive!
+      const maxTilt = 90; // Full range
       
-      // Clamp and convert to radians
-      const clampedBeta = Math.max(-maxTilt, Math.min(maxTilt, beta)) * (Math.PI / 180);
-      const clampedGamma = Math.max(-maxTilt, Math.min(maxTilt, gamma)) * (Math.PI / 180);
+      // Direct mapping - no complex math
+      const rotX = -(beta * sensitivity * Math.PI / 180); // Forward/back
+      const rotY = gamma * sensitivity * Math.PI / 180;   // Left/right
       
-      // Map to chain rotation (invert beta for intuitive control)
-      gyroTargetRef.current = {
-        x: -clampedBeta * sensitivity, // Forward/back (inverted for natural feel)
-        y: clampedGamma * sensitivity  // Left/right
-      };
+      gyroTargetRef.current = { x: rotX, y: rotY };
       
-      // Debug the calculated targets
-      console.log(`Gyro targets - X: ${gyroTargetRef.current.x.toFixed(3)}, Y: ${gyroTargetRef.current.y.toFixed(3)}`);
+      // OBVIOUS debug output
+      console.log(`🎯 TARGETS - X: ${rotX.toFixed(3)}, Y: ${rotY.toFixed(3)}`);
+      
+      // IMMEDIATE direct application for testing (bypass smoothing)
+      if (groupRef.current) {
+        groupRef.current.rotation.x = rotX;
+        groupRef.current.rotation.y = rotY;
+        console.log(`⚡ DIRECT ROTATION APPLIED!`);
+      }
+      
     } catch (error) {
-      console.error('Error handling device orientation:', error);
+      console.error('❌ Error handling device orientation:', error);
     }
   };
 
