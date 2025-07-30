@@ -331,17 +331,18 @@ const InteractiveChain = React.forwardRef(({ addDebugMessage, isGyroActive, setI
         addDebugMessage(`📱 GYRO: β=${beta.toFixed(1)}° γ=${gamma.toFixed(1)}°`);
       }
       
-      // Convert to rotation with clamping
-      const sensitivity = 1.5; // Moderate sensitivity for smooth control
+      // Convert to rotation with full range mapping
       const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
       
-      // Adjust beta so that holding phone upright (beta ~90°) shows chain straight
-      // When phone is upright, beta is around 90°, so subtract 90° to make that the "zero" position
-      const adjustedBeta = beta - 90; // Now upright phone position = 0°
+      // Map full phone tilt range to full chain range:
+      // Phone upright (beta ~90°) → chain straight (rotX = 0)
+      // Phone flat down (beta ~0°) → chain max back (rotX = +1.2)
+      // Phone tilted back (beta ~180°) → chain max forward (rotX = -1.2)
+      const adjustedBeta = beta - 90; // Convert to -90° to +90° range centered on upright
       
-      // Convert to radians and clamp to reasonable range
-      const rotX = clamp(-(adjustedBeta * sensitivity * Math.PI / 180), -1.2, 1.2);  // ~±69° max
-      const rotY = clamp((gamma * sensitivity * Math.PI / 180), -1.2, 1.2);  // ~±69° max
+      // Map the full 90° phone tilt range to full 1.2 radian chain range
+      const rotX = clamp(-(adjustedBeta / 90) * 1.2, -1.2, 1.2); // Full range utilization
+      const rotY = clamp((gamma * 1.5 * Math.PI / 180), -1.2, 1.2); // Keep left/right sensitivity
       
       // DIRECT THREE.JS CONTROL (same technique as test button)
       if (groupRef.current) {
